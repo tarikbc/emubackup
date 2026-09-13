@@ -1,0 +1,27 @@
+# Build output
+/build/
+*.apk
+*.dex
+*.ap_
+*.class
+
+# Signing material — never commit
+*.jks
+*.keystore
+/keystore/
+
+# Vendored dependencies — run ./vendor-libs.sh
+/libs/
+
+# Derived at runtime on device, not source
+gamedb-derived.json
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+*.iml
+
+# Internal workflow docs / scratch — not for the public repo
+/.superpowers/
+/docs/superpowers/

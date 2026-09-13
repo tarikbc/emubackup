@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Framework Material, not AndroidX Material3: this is a Gradle-free build
+         and no Material Components library is vendored. DESIGN.md §9: dark-only,
+         no values-night variant. -->
+    <style name="Theme.EmuBackup" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/ink_black</item>
+        <item name="android:windowBackground">@color/ink_black</item>
+        <item name="android:colorPrimary">@color/accent</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:statusBarColor">@color/ink_black</item>
+        <item name="android:navigationBarColor">@color/ink_black</item>
+        <!-- colorSurface/colorError are AndroidX-only attrs with no framework
+             equivalent, so they are intentionally not set. -->
+    </style>
+</resources>

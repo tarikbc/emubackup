@@ -1,0 +1,79 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-34" "build-tools;35.0.0"
+
+      - name: Vendor dependencies
+        run: ./vendor-libs.sh
+
+      - name: Unit tests
+        run: ./test.sh
+
+      - name: Decode release keystore
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p keystore
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore/emubackup-release.jks
+
+      - name: Build
+        env:
+          VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
+          VERSION_CODE: ${{ github.run_number }}
+          # Absent on forks and on non-tag builds. An empty client id is a supported
+          # configuration: the app falls back to a local folder. Scoped to this step only,
+          # never written to $GITHUB_ENV.
+          EMUBACKUP_DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          EMUBACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          KEYSTORE: ${{ startsWith(github.ref, 'refs/tags/v') && 'keystore/emubackup-release.jks' || '' }}
+          STOREPASS: ${{ secrets.RELEASE_STOREPASS }}
+          KEYPASS: ${{ secrets.RELEASE_KEYPASS }}
+          KEYALIAS: ${{ secrets.RELEASE_KEYALIAS }}
+        run: |
+          if [ -z "${KEYSTORE:-}" ]; then unset KEYSTORE STOREPASS KEYPASS KEYALIAS; fi
+          ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: emubackup-apk
+          path: build/emubackup.apk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/emubackup.apk
+          generate_release_notes: true
+          body: |
+            Sideload with `adb install -r emubackup.apk`.
+
+            On first launch grant **all-files access** — emulator save folders are owned by
+            other apps at arbitrary paths, which scoped storage cannot reach.
+
+            **Shizuku is optional** and unlocks saves kept in `Android/data` (Dolphin,
+            DuckStation, legacy Citra, Vita3K, aPS3e, GTA SA). Everything in shared storage
+            works without it.
+
+            This build has **no Google Drive client configured**, so it backs up to a local
+            folder. To use Drive, build from source with your own OAuth client — see
+            `docs/DRIVE_SETUP.md`.

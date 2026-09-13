@@ -1,0 +1,23 @@
+EmuBackup
+Copyright 2026 Tarik Caramanico
+
+This product includes software developed at:
+
+  Android Open Source Project (AndroidX libraries)
+  Licensed under the Apache License, Version 2.0.
+
+  Kotlin Standard Library, JetBrains s.r.o.
+  Licensed under the Apache License, Version 2.0.
+  Present only as a transitive runtime requirement of AndroidX.
+
+  Shizuku-API, RikkaApps
+  Licensed under the MIT License.
+  Used for optional privileged file access on non-rooted devices.
+
+  JSON in Java (org.json), JSON.org
+  Public Domain. Used by the JVM test suite only; at runtime the
+  equivalent classes are provided by android.jar.
+
+Every emulator path, package name, and file-matching rule in
+src/main/assets/targets.json was derived from first-hand inspection of the
+developer's own device. See docs/PROVENANCE.md.

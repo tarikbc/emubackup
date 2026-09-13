@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A cartridge outline: the thing a battery save used to live in. DESIGN.md §3. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#14171C"
+        android:pathData="M0,0h108v108H0z" />
+    <path android:fillColor="#4FC3A1"
+        android:pathData="M30,26h48a6,6 0 0 1 6,6v38l-12,18H36L24,70V32a6,6 0 0 1 6,-6z" />
+    <path android:fillColor="#14171C"
+        android:pathData="M38,38h32v16H38z" />
+    <path android:fillColor="#14171C"
+        android:pathData="M44,62h6v12h-6z M58,62h6v12h-6z" />
+</vector>

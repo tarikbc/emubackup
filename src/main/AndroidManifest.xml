@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.tarikbc.emubackup">
+
+    <!-- Tier A: shared-storage saves. Emulator save folders are owned by other
+         apps and live at arbitrary paths under /sdcard, so scoped storage and
+         MediaStore cannot reach them; all-files access is the only route. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Drive uploads. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- A 730 MB run takes minutes and must survive the screen turning off. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Scheduled backups persist across reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Tier B: optional. Android 11 removed Android/data access for normal
+         apps; MANAGE_EXTERNAL_STORAGE does not cover it and SAF cannot target
+         it. Shizuku, activated over adb, is the only route on a non-rooted
+         device. Absent Shizuku the app still covers all of Tier A. -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
+    <!-- Required under targetSdk 34 to tell "Shizuku not installed" apart from
+         "Shizuku installed but not running". -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
+        android:theme="@style/Theme.EmuBackup"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Shizuku's binder bridge. The authority is written out literally
+             because aapt2 link has no manifest-placeholder substitution.
+             multiprocess=false and exported=true are both load-bearing;
+             ShizukuProvider logs and fails if either is wrong. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="com.tarikbc.emubackup.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+    </application>
+</manifest>

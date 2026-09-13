@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DESIGN.md §2. Dark-only surface ramp plus one accent and three status hues. -->
+<resources>
+    <color name="ink_black">#0B0D10</color>
+    <color name="surface_low">#14171C</color>
+    <color name="surface">#1B1F26</color>
+    <color name="surface_high">#242933</color>
+    <color name="hairline">#2E3440</color>
+
+    <color name="text_primary">#ECEFF4</color>
+    <color name="text_secondary">#9AA4B2</color>
+    <color name="text_tertiary">#6B7280</color>
+
+    <!-- Accent: what is happening now. -->
+    <color name="accent">#4FC3A1</color>
+    <color name="accent_deep">#2A8C71</color>
+
+    <!-- Status: how it ended. -->
+    <color name="ok">#5BD68A</color>
+    <color name="warn">#E3B341</color>
+    <color name="danger">#E5534B</color>
+</resources>
