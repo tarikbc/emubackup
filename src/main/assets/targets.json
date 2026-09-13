@@ -6,71 +6,270 @@
       "label": "Eden (Nintendo Switch)",
       "packages": ["dev.eden.eden_emulator.nightly", "dev.eden.eden_emulator"],
       "targets": [
-        {
-          "id": "eden-saves",
-          "label": "Game saves",
-          "category": "SAVE",
-          "tier": "SHARED",
+        { "id": "eden-saves", "label": "Game saves", "category": "SAVE", "tier": "SHARED",
           "root": "{EXT}/ROMs/switch/saves",
-          "include": ["**"],
-          "exclude": ["**/*.tmp", "**/cache/**"],
-          "recursive": true,
-          "maxBytes": 536870912,
-          "compress": "deflate",
-          "enabledByDefault": true,
-          "critical": false,
-          "sensitive": false,
-          "coupledWith": ["eden-profiles"],
-          "grouping": {
-            "pattern": "user/save/{account}/{profile}/{game}/**",
-            "gameIdKind": "SWITCH_TITLE_ID",
-            "profileIdKind": "SWITCH_USER_UUID"
-          },
-          "note": "Eden's configured save dir on this device, not its default."
-        },
-        {
-          "id": "eden-custom-drop",
-          "label": "Custom Complete Fighters Savegame (manual drop)",
-          "category": "SAVE",
-          "tier": "SHARED",
+          "include": ["**"], "exclude": ["**/*.tmp", "**/cache/**"],
+          "maxBytes": 536870912, "coupledWith": ["eden-profiles"],
+          "grouping": { "pattern": "user/save/{account}/{profile}/{game}/**",
+                        "gameIdKind": "SWITCH_TITLE_ID", "profileIdKind": "SWITCH_USER_UUID" },
+          "note": "Eden's configured save dir on this device, set by Paths\\save_directory in its config.ini, not its default location." },
+
+        { "id": "eden-custom-drop", "label": "Custom Complete Fighters Savegame", "category": "SAVE", "tier": "SHARED",
           "root": "{EXT}/ROMs/switch/Custom Complete Fighters Savegame",
-          "include": ["**"],
-          "recursive": true,
-          "maxBytes": 134217728,
-          "enabledByDefault": true,
+          "include": ["**"], "maxBytes": 134217728, "grouping": null,
+          "note": "A manual save drop outside saves/. A scanner keyed only on saves/ would miss it." },
+
+        { "id": "eden-profiles", "label": "User profiles", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "dev.eden.eden_emulator.nightly", "root": "{DATA}/files/nand/system/save",
+          "include": ["**"], "maxBytes": 16777216, "critical": true, "grouping": null,
+          "note": "Holds profiles.dat. Every save under eden-saves is keyed to a profile UUID stored here; restoring saves without it leaves them orphaned and invisible in the emulator." },
+
+        { "id": "eden-keys", "label": "Console keys", "category": "KEY", "tier": "APP_PRIVATE",
+          "pkg": "dev.eden.eden_emulator.nightly", "root": "{DATA}/files/keys",
+          "include": ["*.keys"], "recursive": false, "maxBytes": 4194304,
+          "enabledByDefault": false, "sensitive": true, "grouping": null,
+          "note": "Not save data. Needed for a restore onto a fresh device to boot anything. Stored unencrypted in the archive." }
+      ]
+    },
+    {
+      "id": "ps2",
+      "label": "NetherSX2 / ArmsX2 (PlayStation 2)",
+      "packages": ["xyz.aethersx2.tturnip", "com.armsx2"],
+      "targets": [
+        { "id": "ps2-memcards", "label": "Memory cards", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/ps2/memcards",
+          "include": ["*.ps2", "*.mcr", "*.mcd"], "recursive": false, "maxBytes": 268435456,
           "grouping": null,
-          "note": "Non-standard drop outside saves/. Whole folder only."
-        },
-        {
-          "id": "eden-profiles",
-          "label": "User profiles (profiles.dat)",
-          "category": "SAVE",
-          "tier": "APP_PRIVATE",
-          "pkg": "dev.eden.eden_emulator.nightly",
-          "root": "{DATA}/files/nand/system/save",
-          "include": ["**"],
-          "recursive": true,
-          "maxBytes": 16777216,
-          "enabledByDefault": true,
-          "critical": true,
+          "note": "A PS2 memory card is one opaque binary holding every game's saves. Splitting it would need a PS2 filesystem parser, so restore is whole-card only." },
+
+        { "id": "ps2-memcard-backups", "label": "Memory card auto-backups", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/ps2/memcard-backups",
+          "include": ["**"], "maxBytes": 268435456, "enabledByDefault": false, "grouping": null,
+          "note": "The emulator's own rolling backup of the cards above. Enabling this duplicates data you already have." },
+
+        { "id": "ps2-states", "label": "Save states", "category": "STATE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/ps2/sstates",
+          "include": ["**"], "maxBytes": 2147483648, "compress": "store",
+          "enabledByDefault": false, "grouping": null,
+          "note": "The largest single item on the reference device at 386 MB. Already compressed, so stored rather than deflated." }
+      ]
+    },
+    {
+      "id": "ppsspp",
+      "label": "PPSSPP (PSP)",
+      "packages": ["org.ppsspp.ppsspp"],
+      "targets": [
+        { "id": "ppsspp-saves", "label": "Game saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/psp/PSP/SAVEDATA",
+          "include": ["**"], "maxBytes": 268435456,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "PSP_GAME_ID" } },
+
+        { "id": "ppsspp-states", "label": "Save states", "category": "STATE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/psp/PSP/PPSSPP_STATE",
+          "include": ["**"], "maxBytes": 536870912, "compress": "store", "enabledByDefault": false,
+          "grouping": { "filenameRegex": "^(?<game>[A-Z]{4}[0-9]{5}).*", "gameIdKind": "PSP_GAME_ID" } }
+      ]
+    },
+    {
+      "id": "azahar",
+      "label": "Azahar (Nintendo 3DS)",
+      "packages": ["org.azahar_emu.azahar"],
+      "targets": [
+        { "id": "azahar-nand", "label": "System saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/n3ds/nand", "include": ["**"], "maxBytes": 268435456, "grouping": null },
+
+        { "id": "azahar-sdmc", "label": "Game saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/n3ds/sdmc", "include": ["**"], "maxBytes": 536870912,
+          "grouping": { "pattern": "Nintendo 3DS/{id0}/{id1}/title/{hi}/{game}/**", "gameIdKind": "N3DS_TITLE_ID" } },
+
+        { "id": "azahar-states", "label": "Save states", "category": "STATE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/n3ds/states", "include": ["**"], "maxBytes": 1073741824,
+          "compress": "store", "enabledByDefault": false, "grouping": null }
+      ]
+    },
+    {
+      "id": "citra-legacy",
+      "label": "Citra, legacy install (Nintendo 3DS)",
+      "packages": ["org.citra.emu"],
+      "targets": [
+        { "id": "citra-nand", "label": "System saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.citra.emu", "root": "{DATA}/files/citra-emu/nand",
+          "include": ["**"], "maxBytes": 268435456, "grouping": null,
+          "note": "A second, entirely independent 3DS save set. It shares nothing with Azahar and must never be merged with it." },
+
+        { "id": "citra-sdmc", "label": "Game saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.citra.emu", "root": "{DATA}/files/citra-emu/sdmc",
+          "include": ["**"], "maxBytes": 268435456,
+          "grouping": { "pattern": "Nintendo 3DS/{id0}/{id1}/title/{hi}/{game}/**", "gameIdKind": "N3DS_TITLE_ID" } },
+
+        { "id": "citra-keys", "label": "Console keys", "category": "KEY", "tier": "APP_PRIVATE",
+          "pkg": "org.citra.emu", "root": "{DATA}/files/citra-emu/sysdata",
+          "include": ["*.txt", "*.bin"], "recursive": false, "maxBytes": 16777216,
+          "enabledByDefault": false, "sensitive": true, "grouping": null,
+          "note": "aes_keys.txt and boot9.bin. Not save data; needed for a working restore." }
+      ]
+    },
+    {
+      "id": "dolphin",
+      "label": "Dolphin (GameCube / Wii)",
+      "packages": ["org.dolphinemu.dolphinemu"],
+      "targets": [
+        { "id": "dolphin-gc", "label": "GameCube memory cards", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.dolphinemu.dolphinemu", "root": "{DATA}/files/GC",
+          "include": ["**/*.gci", "**/*.raw"], "maxBytes": 67108864,
+          "grouping": { "filenameRegex": "^(?<game>.+)\\.gci$", "gameIdKind": "ROM_BASENAME" },
+          "note": "Individual .gci saves plus SRAM.raw. Unreachable without Shizuku on Android 11+." },
+
+        { "id": "dolphin-wii", "label": "Wii NAND saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.dolphinemu.dolphinemu", "root": "{DATA}/files/Wii",
+          "include": ["**"], "maxBytes": 134217728,
+          "grouping": { "pattern": "title/{hi}/{game}/data/**", "gameIdKind": "ROM_BASENAME" } },
+
+        { "id": "dolphin-states", "label": "Save states", "category": "STATE", "tier": "APP_PRIVATE",
+          "pkg": "org.dolphinemu.dolphinemu", "root": "{DATA}/files/StateSaves",
+          "include": ["**"], "maxBytes": 536870912, "compress": "store",
+          "enabledByDefault": false, "grouping": null }
+      ]
+    },
+    {
+      "id": "duckstation",
+      "label": "DuckStation (PlayStation)",
+      "packages": ["com.github.stenzek.duckstation"],
+      "targets": [
+        { "id": "duckstation-memcards", "label": "Memory cards", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "com.github.stenzek.duckstation", "root": "{DATA}/files/memcards",
+          "include": ["*.mcd", "*.mcr"], "recursive": false, "maxBytes": 67108864, "grouping": null },
+
+        { "id": "duckstation-states", "label": "Save states", "category": "STATE", "tier": "APP_PRIVATE",
+          "pkg": "com.github.stenzek.duckstation", "root": "{DATA}/files/savestates",
+          "include": ["**"], "maxBytes": 536870912, "compress": "store", "enabledByDefault": false,
+          "grouping": { "filenameRegex": "^(?<game>[A-Z]{4}-[0-9]{5})_.*", "gameIdKind": "PSX_SERIAL" } }
+      ]
+    },
+    {
+      "id": "melonds",
+      "label": "melonDS (Nintendo DS)",
+      "packages": ["me.magnum.melonds"],
+      "targets": [
+        { "id": "melonds-saves", "label": "Game saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/ROMs/nds",
+          "include": ["**/*.sav", "**/*.dsv"], "maxBytes": 134217728,
+          "grouping": { "filenameRegex": "^(?<game>.+)\\.(sav|dsv)$", "gameIdKind": "ROM_BASENAME" },
+          "note": "Saves sit directly beside multi-gigabyte ROM archives in this folder. The extension globs are the only thing keeping ROMs out of the backup." }
+      ]
+    },
+    {
+      "id": "retroarch",
+      "label": "RetroArch (multi-system)",
+      "packages": ["com.retroarch.aarch64", "com.retroarch"],
+      "targets": [
+        { "id": "retroarch-saves", "label": "Battery saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/RetroArch/saves",
+          "include": ["**/*.srm", "**/*.sav", "**/*.rtc", "**/*.eep", "**/*.fla"], "maxBytes": 268435456,
+          "grouping": { "filenameRegex": "^(?<game>.+)\\.(srm|sav|rtc|eep|fla)$", "gameIdKind": "ROM_BASENAME" } },
+
+        { "id": "retroarch-states", "label": "Save states", "category": "STATE", "tier": "SHARED",
+          "root": "{EXT}/RetroArch/states",
+          "include": ["**"], "maxBytes": 536870912, "compress": "store", "enabledByDefault": false,
+          "grouping": null },
+
+        { "id": "retroarch-vmu", "label": "Dreamcast VMU saves", "category": "SAVE", "tier": "SHARED",
+          "root": "{EXT}/RetroArch/system",
+          "include": ["vmu_save_*.bin", "dc_nvmem*.bin"], "recursive": false, "maxBytes": 33554432,
           "grouping": null,
-          "note": "Every save under eden-saves is keyed to a profile UUID stored here. Restoring saves without this leaves them orphaned."
-        },
-        {
-          "id": "eden-keys",
-          "label": "Console keys (prod.keys, title.keys)",
-          "category": "KEY",
-          "tier": "APP_PRIVATE",
-          "pkg": "dev.eden.eden_emulator.nightly",
-          "root": "{DATA}/files/keys",
-          "include": ["*.keys"],
-          "recursive": false,
-          "maxBytes": 4194304,
-          "enabledByDefault": false,
-          "sensitive": true,
+          "note": "This folder also holds about 4 GB of BIOS images. Matching is by filename with recursion off, so the folder itself is never included." }
+      ]
+    },
+    {
+      "id": "vita3k",
+      "label": "Vita3K (PlayStation Vita)",
+      "packages": ["org.vita3k.emulator"],
+      "targets": [
+        { "id": "vita3k-saves", "label": "Game saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.vita3k.emulator", "root": "{DATA}/files/vita/ux0/user/00/savedata",
+          "include": ["**"], "maxBytes": 268435456,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "ROM_BASENAME" },
+          "note": "Only savedata is covered. The rest of files/vita is emulated firmware and installed game content, about 667 MB, and is not save data." }
+      ]
+    },
+    {
+      "id": "aps3e",
+      "label": "aPS3e (PlayStation 3)",
+      "packages": ["aenu.aps3e"],
+      "targets": [
+        { "id": "aps3e-saves", "label": "Game saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "aenu.aps3e", "root": "{DATA}/files/aps3e/config/dev_hdd0/home/00000001/savedata",
+          "include": ["**"], "maxBytes": 536870912,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "ROM_BASENAME" } },
+
+        { "id": "aps3e-trophy", "label": "Trophies", "category": "CONFIG", "tier": "APP_PRIVATE",
+          "pkg": "aenu.aps3e", "root": "{DATA}/files/aps3e/config/dev_hdd0/home/00000001/trophy",
+          "include": ["**"], "maxBytes": 134217728, "enabledByDefault": false, "grouping": null }
+      ]
+    },
+    {
+      "id": "rpcsx",
+      "label": "RPCSX (PlayStation 3)",
+      "packages": ["net.rpcsx"],
+      "targets": [
+        { "id": "rpcsx-saves", "label": "Game saves", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "net.rpcsx", "root": "{DATA}/files/config/dev_hdd0/home/00000001/savedata",
+          "include": ["**"], "maxBytes": 536870912,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "ROM_BASENAME" },
+          "note": "Scaffolded but unused on the reference device. Wired up so it works the day it is." }
+      ]
+    },
+    {
+      "id": "gtasa",
+      "label": "GTA San Andreas",
+      "packages": ["com.rockstargames.gtasa"],
+      "targets": [
+        { "id": "gtasa-saves", "label": "Save slots", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "com.rockstargames.gtasa", "root": "{DATA}/files",
+          "include": ["GTASAsf*.b", "CINFO.BIN"], "recursive": false, "maxBytes": 33554432,
+          "grouping": { "filenameRegex": "^(?<game>GTASAsf[0-9]+)\\.b$", "gameIdKind": "ROM_BASENAME" },
+          "note": "Slot files only. The settings file is a separate opt-in target because a foreign one overwrites controls and graphics config." },
+
+        { "id": "gtasa-settings", "label": "Settings", "category": "CONFIG", "tier": "APP_PRIVATE",
+          "pkg": "com.rockstargames.gtasa", "root": "{DATA}/files",
+          "include": ["gta_sa.set", "gtasatelem.set"], "recursive": false, "maxBytes": 4194304,
+          "enabledByDefault": false, "grouping": null,
+          "note": "Version-specific. Restoring one from a different build clobbers controls and graphics settings for no benefit." }
+      ]
+    },
+    {
+      "id": "minecraft-bedrock",
+      "label": "Minecraft, Bedrock",
+      "packages": ["com.mojang.minecraftpe"],
+      "targets": [
+        { "id": "mcpe-worlds", "label": "Worlds", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "com.mojang.minecraftpe", "root": "{DATA}/files/games/com.mojang/minecraftWorlds",
+          "include": ["**"], "maxBytes": 2147483648,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "ROM_BASENAME" } }
+      ]
+    },
+    {
+      "id": "amethyst",
+      "label": "Amethyst (Minecraft, Java)",
+      "packages": ["org.angelauramc.amethyst"],
+      "targets": [
+        { "id": "amethyst-worlds", "label": "Worlds", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "org.angelauramc.amethyst", "root": "{DATA}/files/.minecraft/saves",
+          "include": ["**"], "maxBytes": 2147483648,
+          "grouping": { "pattern": "{game}/**", "gameIdKind": "ROM_BASENAME" },
+          "note": "Presence unconfirmed on the reference device; the inventory was cut short. The path follows the standard Minecraft Java layout." }
+      ]
+    },
+    {
+      "id": "clonehero",
+      "label": "Clone Hero",
+      "packages": ["com.srylain.CloneHero"],
+      "targets": [
+        { "id": "clonehero-scores", "label": "Scores and settings", "category": "SAVE", "tier": "APP_PRIVATE",
+          "pkg": "com.srylain.CloneHero", "root": "{DATA}/files",
+          "include": ["*.bin", "*.ini", "scores*"], "recursive": false, "maxBytes": 67108864,
           "grouping": null,
-          "note": "Not save data. Needed for a working restore on a new device. Stored unencrypted in the archive; review before enabling."
-        }
+          "note": "Exact score-file name unconfirmed; the inventory was cut short by a cable disconnect. The globs are deliberately narrow so the engine bulk in this folder is never swept in." }
       ]
     }
   ]

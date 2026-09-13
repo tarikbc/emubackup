@@ -69,7 +69,12 @@ Either form, or `null`:
 
     "grouping": { "filenameRegex": "^(?<game>.+)\\.srm$", "gameIdKind": "ROM_BASENAME" }
 
-`{name}` matches exactly one path component and captures it; `**` matches the remainder.
+`{name}` matches exactly one path component and captures it; `**` matches the remainder, and
+may only appear last — a `**` in the middle would make the match ambiguous, and an ambiguous
+grouping rule silently mislabels saves.
+
+`pattern` matches the **target-relative path**. `filenameRegex` matches the **basename only**,
+and must contain a named group `(?<game>...)`.
 
 **`null` is a legitimate answer, not an omission.** A PS2 memory card is one opaque binary
 containing every game's saves; splitting it would need a PS2 filesystem parser. Say so in

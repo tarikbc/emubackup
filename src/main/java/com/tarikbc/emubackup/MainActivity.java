@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
         sb.append("registry asset   ").append(registryStatus()).append('\n');
         sb.append("ext root         ").append(Environment.getExternalStorageDirectory()).append('\n');
         sb.append('\n');
-        sb.append("inventory target ").append(Sizes.human(765460480L)).append(" of saves\n");
+        sb.append("inventory target ").append(Sizes.human(765460480L)).append(" of saves on the reference device\n");
 
         ((TextView) findViewById(R.id.status)).setText(sb.toString());
     }
@@ -43,13 +43,22 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Confirms {@code -A src/main/assets} actually shipped the registry into the APK. */
+    /**
+     * Loads and validates the bundled registry. Reported here rather than assumed, because a
+     * registry that fails to parse means the app would scan nothing at all — the one failure
+     * that must never be silent.
+     */
     private String registryStatus() {
         try {
-            byte[] b = Assets.readBytes(this, "targets.json");
-            return "ok (" + Sizes.human(b.length) + ")";
+            TargetRegistry reg = TargetRegistry.parse(Assets.readString(this, "targets.json"));
+            int shared = reg.targetsOfTier(Tier.SHARED).size();
+            int priv = reg.targetsOfTier(Tier.APP_PRIVATE).size();
+            return reg.emulators().size() + " emulators, " + reg.allTargets().size() + " targets\n"
+                    + "                 " + shared + " shared, " + priv + " need Shizuku\n"
+                    + "                 " + reg.defaultEnabledTargets().size() + " on by default"
+                    + (reg.warnings().isEmpty() ? "" : "\n                 " + reg.warnings().size() + " warning(s)");
         } catch (Exception e) {
-            return "UNREADABLE: " + e.getClass().getSimpleName();
+            return "FAILED: " + e.getMessage();
         }
     }
 }

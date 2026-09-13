@@ -7,8 +7,20 @@ CP="libs/junit-console.jar:libs/json.jar"
 # plain JVM, which is what makes the backup and restore pipeline testable without
 # an emulator or a device. Listed explicitly rather than globbed so that adding a
 # class to the test set is a deliberate act.
+SRC=src/main/java/com/tarikbc/emubackup
 PURE_SRCS="
-src/main/java/com/tarikbc/emubackup/Sizes.java
+$SRC/Sizes.java
+$SRC/Category.java
+$SRC/Tier.java
+$SRC/TargetStatus.java
+$SRC/IdKind.java
+$SRC/PathResolver.java
+$SRC/PathMatcher.java
+$SRC/PathPattern.java
+$SRC/Grouping.java
+$SRC/Target.java
+$SRC/Emulator.java
+$SRC/TargetRegistry.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,
@@ -23,5 +35,9 @@ for f in $PURE_SRCS; do
   fi
 done
 
+# Note: this compiles against libs/json.jar, but the APK uses the cut-down org.json
+# inside android.jar. They are not the same API — JSONObject.keySet() exists here and
+# not there — so a green test run does not prove the app compiles. ./build.sh is what
+# catches that, and CI runs both in this order.
 javac --release 17 -cp "$CP" -d build/test $PURE_SRCS $(find test/java -name '*.java')
 java -jar libs/junit-console.jar execute -cp "build/test:libs/json.jar" --scan-classpath --details=tree
