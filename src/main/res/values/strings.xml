@@ -16,4 +16,9 @@
     <string name="shizuku_pending">Not set up yet. Everything in shared storage still works without it.</string>
 
     <string name="legend">saves · states · keys · skipped</string>
+
+    <string name="back_up_now">Back up now</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="backup_running">Backing up</string>
 </resources>

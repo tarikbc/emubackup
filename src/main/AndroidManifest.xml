@@ -56,6 +56,13 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".BackupActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <service android:name=".BackupService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <activity android:name=".TargetsActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
 

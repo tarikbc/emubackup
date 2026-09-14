@@ -30,6 +30,23 @@ $SRC/Capabilities.java
 $SRC/PackagePresence.java
 $SRC/TargetScan.java
 $SRC/ScanEngine.java
+$SRC/Hashes.java
+$SRC/VersionId.java
+$SRC/ManifestFile.java
+$SRC/ManifestTarget.java
+$SRC/Manifest.java
+$SRC/Plan.java
+$SRC/DiffEngine.java
+$SRC/ArchivePolicy.java
+$SRC/ArchiveWriter.java
+$SRC/BackupSink.java
+$SRC/LocalFolderSink.java
+$SRC/RestoreScript.java
+$SRC/IndexEntry.java
+$SRC/BackupIndex.java
+$SRC/Progress.java
+$SRC/EmulatorVersions.java
+$SRC/BackupRunner.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,

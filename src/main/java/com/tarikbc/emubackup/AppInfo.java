@@ -9,7 +9,7 @@ import android.content.pm.PackageManager;
  * <p>The version of the emulator that produced a save is recorded in every manifest, because
  * "which build wrote this" is the first question when a restored save will not load.
  */
-public final class AppInfo implements PackagePresence {
+public final class AppInfo implements PackagePresence, EmulatorVersions {
 
     private final PackageManager pm;
 
@@ -27,7 +27,7 @@ public final class AppInfo implements PackagePresence {
     }
 
     /** Null when the package is absent. */
-    public String versionName(String pkg) {
+    @Override public String versionName(String pkg) {
         try {
             return pm.getPackageInfo(pkg, 0).versionName;
         } catch (PackageManager.NameNotFoundException e) {
@@ -35,7 +35,7 @@ public final class AppInfo implements PackagePresence {
         }
     }
 
-    public long versionCode(String pkg) {
+    @Override public long versionCode(String pkg) {
         try {
             return pm.getPackageInfo(pkg, 0).getLongVersionCode();
         } catch (PackageManager.NameNotFoundException e) {

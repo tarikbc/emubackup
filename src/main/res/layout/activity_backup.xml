@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/ink_black"
+    android:paddingHorizontal="20dp" android:paddingVertical="28dp">
+
+    <TextView android:id="@+id/phase"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+
+    <TextView android:id="@+id/target"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/text_secondary" android:textSize="15sp" />
+
+    <ProgressBar android:id="@+id/bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="18dp" android:max="100"
+        android:progressTint="@color/accent" android:indeterminateTint="@color/accent" />
+
+    <TextView android:id="@+id/file"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:maxLines="2" android:ellipsize="middle"
+        android:textColor="@color/text_tertiary" android:textSize="12sp"
+        android:fontFamily="monospace" />
+
+    <TextView android:id="@+id/summary"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="22dp" android:background="@color/surface_low"
+        android:padding="14dp" android:visibility="gone"
+        android:textColor="@color/text_secondary" android:textSize="13sp"
+        android:fontFamily="monospace" />
+
+    <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+
+    <Button android:id="@+id/action"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/cancel"
+        android:textColor="@color/text_primary" android:backgroundTint="@color/surface_high" />
+</LinearLayout>

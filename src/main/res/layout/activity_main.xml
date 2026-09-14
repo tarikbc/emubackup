@@ -55,10 +55,15 @@
             </LinearLayout>
         </LinearLayout>
 
+        <Button android:id="@+id/btn_backup"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:text="@string/back_up_now"
+            android:textColor="@color/ink_black" android:backgroundTint="@color/accent" />
+
         <Button android:id="@+id/btn_targets"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp" android:text="@string/targets_title"
-            android:textColor="@color/ink_black" android:backgroundTint="@color/accent" />
+            android:layout_marginTop="8dp" android:text="@string/targets_title"
+            android:textColor="@color/text_primary" android:backgroundTint="@color/surface_high" />
 
         <Button android:id="@+id/btn_permissions"
             android:layout_width="match_parent" android:layout_height="wrap_content"

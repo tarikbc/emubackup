@@ -40,6 +40,8 @@ public class MainActivity extends Activity {
         statusHue = findViewById(R.id.status_hue);
         bar = findViewById(R.id.bar);
 
+        ((Button) findViewById(R.id.btn_backup)).setOnClickListener(
+                v -> startActivity(new Intent(this, BackupActivity.class)));
         ((Button) findViewById(R.id.btn_targets)).setOnClickListener(
                 v -> startActivity(new Intent(this, TargetsActivity.class)));
         ((Button) findViewById(R.id.btn_permissions)).setOnClickListener(
