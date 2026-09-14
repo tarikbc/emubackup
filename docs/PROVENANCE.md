@@ -45,6 +45,57 @@ No writes, pushes, deletes, or permission changes were made during the inventory
   `/sdcard/ROMs/switch/saves`, set by a `Paths\save_directory` override in the
   emulator's own `config.ini`.
 
+## Corrections found by running the registry against the device (2026-09-14)
+
+The registry was first written from the inventory notes, then run against the real
+filesystem. Three entries were wrong. All three were silent failures — the app would
+have reported success while backing up less than the user believed.
+
+- **`retroarch-vmu` found nothing.** The Dreamcast saves are not in
+  `RetroArch/system/` but in `RetroArch/system/dc/`, alongside a second pile of BIOS
+  images (`dc_boot.bin`, `naomi.zip`, `f355bios.zip`, and more). The target was
+  `recursive: false`, so it could never reach them. Now recursive, with the safety
+  coming entirely from the filename globs. It finds 4 VMU saves plus `dc_nvmem.bin`,
+  640 KB in total, while ignoring 1623 other files in that tree.
+- **`ps2-memcards` missed the rollbacks.** The emulator writes `mcd001.ps2.bak` and
+  `mcd001.ps2.bak2` into the memory-card folder itself, not into `memcard-backups/`.
+  A `*.ps2` glob does not match them. They are redundant right up until the live card
+  is corrupt, which is the one moment they matter, so they are now included. This took
+  the target from 17 MB to the 33 MB the inventory recorded.
+- **`eden-custom-drop` pointed at a folder that does not exist.** No
+  `Custom Complete Fighters Savegame` directory is present anywhere under `ROMs/`. The
+  target was removed rather than left to report `ROOT_MISSING` forever.
+
+Also noted, deliberately not covered: `ROMs/switch/Mods/` holds two UltraCam mod
+folders. Mods change whether a save loads, but they are re-obtainable content rather
+than user-generated data, so they stay out of scope alongside the ROMs themselves.
+
+## Measured against the real device (2026-09-14)
+
+Shared-storage targets only, walked through the live filesystem with an independent
+implementation of the glob rules in `TARGETS.md`:
+
+    eden-saves             407 files    143 MB      17 ignored
+    ps2-memcards             6 files     33 MB
+    ps2-memcard-backups      4 files    7.3 MB
+    ps2-states              30 files    385 MB      (opt-in)
+    ppsspp-saves            52 files    7.0 MB
+    ppsspp-states            3 files     11 MB      (opt-in)
+    azahar-nand             32 files    877 KB
+    azahar-sdmc            110 files     11 MB
+    azahar-states            4 files     92 MB      (opt-in)
+    melonds-saves            8 files    904 KB     103 ignored (ROM archives)
+    retroarch-saves          8 files    832 KB
+    retroarch-vmu            5 files    640 KB    1623 ignored (BIOS)
+    ------------------------------------------------------------
+    total                  669 files    693 MB
+      of which saves                    204 MB
+      of which states                   488 MB      (opt-in)
+    default selection                   197 MB
+
+The ignored counts are as important as the found ones: 1623 BIOS images and 103 ROM
+archives sit inside target roots and are correctly excluded by filename.
+
 ## Verified footprint
 
     real save / state / memcard data     ~730 MB

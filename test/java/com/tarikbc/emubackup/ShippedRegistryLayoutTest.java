@@ -52,13 +52,15 @@ class ShippedRegistryLayoutTest {
         file(ext.resolve(edenSave + "header.bin"), 512);
         file(ext.resolve("ROMs/switch/saves/user/save/0000000000000000/"
                 + "85DB91DCBD304DA4C24810CF9BF88573/01007EF00011E000/save.dat"), 2048);
-        file(ext.resolve("ROMs/switch/Custom Complete Fighters Savegame/save_data/x.bin"), 4096);
         file(ext.resolve("ROMs/switch/Super Mario Odyssey [0100000000010000][v0].nsp"), 3_000_000);
         file(ext.resolve("ROMs/switch/Updates and DLC/Some Update.nsp"), 2_000_000);
 
         // --- PS2 -------------------------------------------------------------------------
-        file(ext.resolve("ROMs/ps2/memcards/Mcd001.ps2"), 8192);
-        file(ext.resolve("ROMs/ps2/memcards/Mcd002.ps2"), 8192);
+        file(ext.resolve("ROMs/ps2/memcards/mcd001.ps2"), 8192);
+        file(ext.resolve("ROMs/ps2/memcards/mcd002.ps2"), 8192);
+        file(ext.resolve("ROMs/ps2/memcards/mcd001.mcr"), 4096);
+        file(ext.resolve("ROMs/ps2/memcards/mcd001.ps2.bak"), 8192);
+        file(ext.resolve("ROMs/ps2/memcards/mcd001.ps2.bak2"), 8192);
         file(ext.resolve("ROMs/ps2/memcard-backups/Mcd001.ps2.backup"), 8192);
         file(ext.resolve("ROMs/ps2/sstates/SLUS-20946 (1).00.p2s"), 13_000_000);
         file(ext.resolve("ROMs/ps2/God of War.iso"), 4_000_000);
@@ -82,10 +84,15 @@ class ShippedRegistryLayoutTest {
         // --- RetroArch: system/ holds BIOS and the tiny VMU saves together -----------------
         file(ext.resolve("RetroArch/saves/Zelda.srm"), 32768);
         file(ext.resolve("RetroArch/states/Zelda.state1"), 1_000_000);
-        file(ext.resolve("RetroArch/system/vmu_save_A1.bin"), 131072);
-        file(ext.resolve("RetroArch/system/dc_boot.bin"), 2_000_000);
+        // The real device keeps these in a dc/ subdirectory, mixed in with more BIOS.
+        file(ext.resolve("RetroArch/system/dc/vmu_save_A1.bin"), 131072);
+        file(ext.resolve("RetroArch/system/dc/vmu_save_B1.bin"), 131072);
+        file(ext.resolve("RetroArch/system/dc/dc_nvmem.bin"), 131072);
+        file(ext.resolve("RetroArch/system/dc/dc_boot.bin"), 2_097_152);
+        file(ext.resolve("RetroArch/system/dc/boot.bin"), 2_097_152);
+        file(ext.resolve("RetroArch/system/dc/naomi.zip"), 9_321_533);
         file(ext.resolve("RetroArch/system/scph5500.bin"), 524288);
-        file(ext.resolve("RetroArch/system/dc/naomi.zip"), 1_000_000);
+        file(ext.resolve("RetroArch/system/32X_G_BIOS.BIN"), 262144);
     }
 
     private Map<String, TargetScan> scanAll(Capabilities caps) {
@@ -136,21 +143,14 @@ class ShippedRegistryLayoutTest {
     }
 
     @Test
-    @DisplayName("the manual Eden save drop outside saves/ is picked up by its own target")
-    void edenCustomDrop() {
-        TargetScan s = scanAll(new Capabilities(true, false, false)).get("eden-custom-drop");
-        assertEquals(TargetStatus.OK, s.status);
-        assertEquals(1, s.fileCount());
-    }
-
-    @Test
-    @DisplayName("the RetroArch VMU save is found and 4 GB of BIOS beside it is not")
+    @DisplayName("the VMU saves are found in the dc/ subdirectory and the BIOS around them is not")
     void retroarchVmuAgainstBios() {
         TargetScan s = scanAll(new Capabilities(true, false, false)).get("retroarch-vmu");
         assertEquals(TargetStatus.OK, s.status);
-        assertEquals(java.util.Collections.singleton("vmu_save_A1.bin"), paths(s));
-        assertEquals(131072, s.totalBytes);
-        assertTrue(s.unmatchedCount >= 2, "the BIOS files should be counted as ignored");
+        assertEquals(new HashSet<>(Arrays.asList(
+                "dc/vmu_save_A1.bin", "dc/vmu_save_B1.bin", "dc/dc_nvmem.bin")), paths(s));
+        assertEquals(393216, s.totalBytes);
+        assertTrue(s.unmatchedCount >= 5, "the BIOS images should be counted as ignored");
     }
 
     @Test
@@ -167,7 +167,7 @@ class ShippedRegistryLayoutTest {
         Map<String, TargetScan> all = scanAll(new Capabilities(true, false, false));
         TargetScan s = all.get("ps2-memcards");
         assertEquals(TargetStatus.OK, s.status);
-        assertEquals(2, s.fileCount());
+        assertEquals(5, s.fileCount(), "two cards, one .mcr, and the two .bak rollbacks");
         for (String p : paths(s)) assertFalse(p.endsWith(".iso"));
     }
 
@@ -185,17 +185,20 @@ class ShippedRegistryLayoutTest {
     @DisplayName("the default selection excludes every save state on the device")
     void defaultSelectionExcludesStates() {
         Map<String, TargetScan> all = scanAll(new Capabilities(true, false, false));
-        long defaultBytes = 0, stateBytes = 0;
+        long stateBytes = 0;
         for (Map.Entry<String, TargetScan> e : all.entrySet()) {
             if (!e.getValue().hasContent()) continue;
             Target t = reg.target(e.getKey());
-            if (t.enabledByDefault) defaultBytes += e.getValue().totalBytes;
             if (t.category == Category.STATE) stateBytes += e.getValue().totalBytes;
+            // Assert the property itself rather than a size proxy. A byte threshold drifts
+            // every time the fixture gains a file, and then stops testing anything.
+            if (t.enabledByDefault) {
+                assertEquals(Category.SAVE, t.category,
+                        t.id + " is in the default selection but is a " + t.category + " target");
+            }
         }
-        // 13 MB PS2 + 5 MB PSP + 20 MB 3DS + 1 MB RetroArch of states exist in this layout.
+        // 13 MB PS2 + 5 MB PSP + 20 MB 3DS of states exist in this layout, all opt-in.
         assertTrue(stateBytes > 38_000_000, "expected states to be present, got " + stateBytes);
-        assertTrue(defaultBytes < 1_000_000,
-                "save states leaked into the default selection: " + Sizes.human(defaultBytes));
     }
 
     @Test

@@ -14,10 +14,6 @@
                         "gameIdKind": "SWITCH_TITLE_ID", "profileIdKind": "SWITCH_USER_UUID" },
           "note": "Eden's configured save dir on this device, set by Paths\\save_directory in its config.ini, not its default location." },
 
-        { "id": "eden-custom-drop", "label": "Custom Complete Fighters Savegame", "category": "SAVE", "tier": "SHARED",
-          "root": "{EXT}/ROMs/switch/Custom Complete Fighters Savegame",
-          "include": ["**"], "maxBytes": 134217728, "grouping": null,
-          "note": "A manual save drop outside saves/. A scanner keyed only on saves/ would miss it." },
 
         { "id": "eden-profiles", "label": "User profiles", "category": "SAVE", "tier": "APP_PRIVATE",
           "pkg": "dev.eden.eden_emulator.nightly", "root": "{DATA}/files/nand/system/save",
@@ -38,9 +34,9 @@
       "targets": [
         { "id": "ps2-memcards", "label": "Memory cards", "category": "SAVE", "tier": "SHARED",
           "root": "{EXT}/ROMs/ps2/memcards",
-          "include": ["*.ps2", "*.mcr", "*.mcd"], "recursive": false, "maxBytes": 268435456,
+          "include": ["*.ps2", "*.mcr", "*.mcd", "*.ps2.bak*"], "recursive": false, "maxBytes": 268435456,
           "grouping": null,
-          "note": "A PS2 memory card is one opaque binary holding every game's saves. Splitting it would need a PS2 filesystem parser, so restore is whole-card only." },
+          "note": "A PS2 memory card is one opaque binary holding every game's saves. Splitting it would need a PS2 filesystem parser, so restore is whole-card only. The .ps2.bak rollbacks the emulator writes beside each card are included: they are redundant until the live card is corrupt, which is exactly when they matter." },
 
         { "id": "ps2-memcard-backups", "label": "Memory card auto-backups", "category": "SAVE", "tier": "SHARED",
           "root": "{EXT}/ROMs/ps2/memcard-backups",
@@ -175,9 +171,9 @@
 
         { "id": "retroarch-vmu", "label": "Dreamcast VMU saves", "category": "SAVE", "tier": "SHARED",
           "root": "{EXT}/RetroArch/system",
-          "include": ["vmu_save_*.bin", "dc_nvmem*.bin"], "recursive": false, "maxBytes": 33554432,
+          "include": ["**/vmu_save_*.bin", "**/dc_nvmem*.bin"], "maxBytes": 33554432,
           "grouping": null,
-          "note": "This folder also holds about 4 GB of BIOS images. Matching is by filename with recursion off, so the folder itself is never included." }
+          "note": "Verified on device: the saves sit in a dc/ subdirectory beside another pile of BIOS images, and this root holds about 4 GB of them in total. Safety here comes entirely from the filename globs, never from depth — do not widen them." }
       ]
     },
     {

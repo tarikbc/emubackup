@@ -88,16 +88,21 @@ class TargetRegistryTest {
         }
 
         @Test
-        @DisplayName("the RetroArch VMU target cannot reach the BIOS folder")
+        @DisplayName("the RetroArch VMU target reaches the saves and nothing else in a 4 GB BIOS folder")
         void retroarchVmuIsNarrow() {
-            Target t = reg.target("retroarch-vmu");
-            assertFalse(t.recursive, "retroarch-vmu must not recurse: its root holds ~4 GB of BIOS");
-            for (String g : t.include) {
-                assertFalse(g.contains("**"), "retroarch-vmu include must not use **: " + g);
+            // The real device keeps these saves in a dc/ subdirectory alongside more BIOS, so
+            // the target has to recurse. The guarantee is therefore not "shallow" but "matches
+            // only save filenames" — asserted behaviourally against the real names observed on
+            // the device, because that is the property that actually protects the user.
+            PathMatcher m = reg.target("retroarch-vmu").matcher();
+            assertTrue(m.matches("dc/vmu_save_A1.bin"), "must reach the saves in the dc/ subdirectory");
+            assertTrue(m.matches("dc/dc_nvmem.bin"));
+            for (String bios : new String[]{
+                    "dc/dc_boot.bin", "dc/naomi.zip", "dc/naomi2.zip", "dc/boot.bin", "dc/flash.bin",
+                    "dc/f355bios.zip", "dc/segasp.zip", "scph5500.bin", "32X_G_BIOS.BIN",
+                    "3dobios.zip", "bios_CD_E.bin", "BIOS.col"}) {
+                assertFalse(m.matches(bios), "a BIOS image is reachable by the VMU target: " + bios);
             }
-            assertTrue(t.matcher().matches("vmu_save_A1.bin"));
-            assertFalse(t.matcher().matches("dc_boot.bin"));
-            assertFalse(t.matcher().matches("naomi.zip"));
         }
 
         @Test
@@ -126,11 +131,15 @@ class TargetRegistryTest {
         }
 
         @Test
-        @DisplayName("the non-standard Eden save drop has its own target")
-        void edenCustomDropIsCovered() {
-            Target t = reg.target("eden-custom-drop");
-            assertTrue(t.root.contains("Custom Complete Fighters Savegame"));
-            assertNotEquals(reg.target("eden-saves").root, t.root);
+        @DisplayName("the .bak rollbacks the PS2 emulator writes beside each card are covered")
+        void ps2MemcardRollbacksAreCovered() {
+            // Observed on device: mcd001.ps2.bak and mcd001.ps2.bak2 sit in the memcards folder
+            // itself, not in memcard-backups. A *.ps2 glob alone silently misses them.
+            PathMatcher m = reg.target("ps2-memcards").matcher();
+            assertTrue(m.matches("mcd001.ps2"));
+            assertTrue(m.matches("mcd001.mcr"));
+            assertTrue(m.matches("mcd001.ps2.bak"));
+            assertTrue(m.matches("mcd001.ps2.bak2"));
         }
 
         @Test
