@@ -123,6 +123,27 @@ class ScanEngineTest {
     }
 
     @Test
+    @DisplayName("a locked or absent target still reports the real path it would have read")
+    void lockedTargetsStillCarryTheirPath(@TempDir Path ext) {
+        // The UI shows this path to explain what Shizuku would unlock. A raw "{DATA}/..."
+        // template there tells the user nothing and leaks an internal placeholder.
+        TargetRegistry r = reg("{\"id\":\"t\",\"label\":\"L\",\"category\":\"SAVE\",\"tier\":\"APP_PRIVATE\","
+                + "\"pkg\":\"a.b.c\",\"root\":\"{DATA}/files/nand\",\"include\":[\"**\"],\"maxBytes\":1048576}");
+
+        TargetScan locked = engine(ext, SHARED_ONLY, PackagePresence.ALL_PRESENT)
+                .scan(r.emulator("e"), r.target("t"));
+        assertEquals(TargetStatus.TIER_UNAVAILABLE, locked.status);
+        assertNotNull(locked.resolvedRoot);
+        assertTrue(locked.resolvedRoot.endsWith("/Android/data/a.b.c/files/nand"), locked.resolvedRoot);
+        assertFalse(locked.resolvedRoot.contains("{"), "the path must not contain a template variable");
+
+        TargetScan absent = engine(ext, SHARED_ONLY, pkg -> false).scan(r.emulator("e"), r.target("t"));
+        assertEquals(TargetStatus.PKG_NOT_INSTALLED, absent.status);
+        assertNotNull(absent.resolvedRoot);
+        assertFalse(absent.resolvedRoot.contains("{"));
+    }
+
+    @Test
     @DisplayName("a missing package is reported as such, even when Shizuku is absent too")
     void packageNotInstalledOutranksTierLock(@TempDir Path ext) {
         TargetRegistry r = reg("{\"id\":\"t\",\"label\":\"L\",\"category\":\"SAVE\",\"tier\":\"APP_PRIVATE\","

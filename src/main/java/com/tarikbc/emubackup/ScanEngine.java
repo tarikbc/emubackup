@@ -55,24 +55,29 @@ public final class ScanEngine {
             String found = firstInstalled(emulator);
             installed = found != null;
             if (found != null) pkg = found;
-            if (!installed) {
-                return fail(t, TargetStatus.PKG_NOT_INSTALLED, null,
-                        "none of " + emulator.packages + " is installed");
-            }
         }
 
-        if (!caps.canRead(t.tier)) {
-            return fail(t, TargetStatus.TIER_UNAVAILABLE, null,
-                    t.tier == Tier.APP_PRIVATE
-                            ? "app-private storage needs Shizuku"
-                            : "all-files access has not been granted");
-        }
-
+        // Resolve before the capability checks, so that a locked or absent target still carries
+        // the real path it would have read. The UI shows that path to explain what Shizuku would
+        // unlock, and showing a raw "{DATA}/..." template there leaks an internal placeholder
+        // instead of telling the user anything.
         String root;
         try {
             root = resolver.resolve(t.root, pkg);
         } catch (IllegalArgumentException ex) {
             return fail(t, TargetStatus.UNREADABLE, null, "bad root: " + ex.getMessage());
+        }
+
+        if (!installed) {
+            return fail(t, TargetStatus.PKG_NOT_INSTALLED, root,
+                    "none of " + emulator.packages + " is installed");
+        }
+
+        if (!caps.canRead(t.tier)) {
+            return fail(t, TargetStatus.TIER_UNAVAILABLE, root,
+                    t.tier == Tier.APP_PRIVATE
+                            ? "app-private storage needs Shizuku"
+                            : "all-files access has not been granted");
         }
 
         FileSource src = t.tier == Tier.SHARED ? shared : appPrivate;

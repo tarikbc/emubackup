@@ -111,7 +111,7 @@ public final class TargetAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 case TIER_UNAVAILABLE:
                     size.setText("locked");
                     size.setTextColor(res.getColor(R.color.text_tertiary, null));
-                    detail.setText("needs Shizuku · " + t.root);
+                    detail.setText("needs Shizuku · " + shortPath(s));
                     break;
                 case OVER_CAP:
                 case UNREADABLE:
@@ -120,6 +120,21 @@ public final class TargetAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                     detail.setText(s.detail == null ? s.status.name() : s.detail);
                     break;
             }
+        }
+
+        /**
+         * The resolved path with the external-storage prefix dropped. The full path is 60-odd
+         * characters of which the first 20 are identical on every row, so trimming it is what
+         * makes the part that differs actually readable.
+         */
+        private static String shortPath(TargetScan s) {
+            if (s.resolvedRoot == null) return "";
+            String p = s.resolvedRoot;
+            int i = p.indexOf("/Android/data/");
+            if (i >= 0) return p.substring(i + 1);
+            i = p.indexOf("/emulated/0/");
+            if (i >= 0) return p.substring(i + "/emulated/0/".length());
+            return p;
         }
 
         private static String chipText(Target t) {
