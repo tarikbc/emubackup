@@ -21,6 +21,15 @@ $SRC/Grouping.java
 $SRC/Target.java
 $SRC/Emulator.java
 $SRC/TargetRegistry.java
+$SRC/FileStat.java
+$SRC/FileSource.java
+$SRC/FileSink.java
+$SRC/LocalFileSource.java
+$SRC/LocalFileSink.java
+$SRC/Capabilities.java
+$SRC/PackagePresence.java
+$SRC/TargetScan.java
+$SRC/ScanEngine.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,

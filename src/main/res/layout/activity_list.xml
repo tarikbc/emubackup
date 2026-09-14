@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared shell for the list screens. The RecyclerView is added in code rather than declared
+     here: this build vendors AndroidX without merging AARs, and inflating a RecyclerView from
+     XML needs its recyclerViewStyle attribute resolved at inflation time. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/container"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/ink_black">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp" android:paddingTop="24dp" android:paddingBottom="12dp">
+
+        <TextView android:id="@+id/title"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+
+        <TextView android:id="@+id/subtitle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/text_secondary" android:textSize="14sp" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="@color/hairline" />
+</LinearLayout>

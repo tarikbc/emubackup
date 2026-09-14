@@ -1,42 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/ink_black">
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/ink_black" android:fillViewport="true">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="28dp">
+        android:paddingHorizontal="20dp" android:paddingVertical="28dp">
 
         <TextView
-            android:id="@+id/title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="@string/app_name"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:textColor="@color/text_primary" android:textSize="28sp" android:textStyle="bold" />
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/tagline"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp" />
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="2dp" android:text="@string/tagline"
+            android:textColor="@color/text_secondary" android:textSize="15sp" />
 
-        <TextView
-            android:id="@+id/status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:background="@color/surface"
-            android:padding="16dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            android:fontFamily="monospace" />
+        <!-- Status card. DESIGN.md §6: the outcome hue is a bar on the leading edge, and this
+             card carries the most important unhappy truth rather than a greeting. -->
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:orientation="horizontal"
+            android:background="@color/surface">
+
+            <View android:id="@+id/status_hue"
+                android:layout_width="3dp" android:layout_height="match_parent"
+                android:background="@color/text_tertiary" />
+
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp">
+
+                <TextView android:id="@+id/headline"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/scanning"
+                    android:textColor="@color/text_primary" android:textSize="20sp" />
+
+                <TextView android:id="@+id/subline"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_secondary" android:textSize="14sp" />
+
+                <com.tarikbc.emubackup.SizeBarView android:id="@+id/bar"
+                    android:layout_width="match_parent" android:layout_height="10dp"
+                    android:layout_marginTop="14dp" />
+
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:text="@string/legend"
+                    android:textColor="@color/text_tertiary" android:textSize="12sp"
+                    android:fontFamily="monospace" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <Button android:id="@+id/btn_targets"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:text="@string/targets_title"
+            android:textColor="@color/ink_black" android:backgroundTint="@color/accent" />
+
+        <Button android:id="@+id/btn_permissions"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/permissions_title"
+            android:textColor="@color/text_primary" android:backgroundTint="@color/surface_high" />
+
+        <TextView android:id="@+id/detail"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:background="@color/surface_low"
+            android:padding="14dp" android:textColor="@color/text_secondary"
+            android:textSize="12sp" android:fontFamily="monospace" />
     </LinearLayout>
 </ScrollView>

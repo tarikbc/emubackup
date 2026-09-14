@@ -26,8 +26,15 @@
          device. Absent Shizuku the app still covers all of Tier A. -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
-    <!-- Required under targetSdk 34 to tell "Shizuku not installed" apart from
-         "Shizuku installed but not running". -->
+    <!-- Package visibility. Android 11 filters which installed apps an app can see, and
+         EmuBackup's whole job is to enumerate emulators and report honestly which of them
+         it covers. A fixed <queries> list would cover the bundled registry but would report
+         a user-added emulator as "not installed", which is exactly the kind of silent,
+         wrong coverage claim this app exists to avoid. Play policy exempts backup tools
+         for this reason, and this APK is sideloaded regardless — MANAGE_EXTERNAL_STORAGE
+         already rules out Play distribution. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
@@ -48,6 +55,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".TargetsActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity android:name=".PermissionActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
 
         <!-- Shizuku's binder bridge. The authority is written out literally
              because aapt2 link has no manifest-placeholder substitution.

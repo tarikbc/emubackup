@@ -2,4 +2,18 @@
 <resources>
     <string name="app_name">EmuBackup</string>
     <string name="tagline">Emulator saves, backed up.</string>
+
+    <string name="scanning">Scanning…</string>
+    <string name="targets_title">Saves on this device</string>
+    <string name="permissions_title">Permissions</string>
+
+    <string name="grant_all_files">Grant all-files access</string>
+    <string name="all_files_granted">All-files access granted</string>
+    <string name="all_files_why">Emulator save folders belong to other apps at arbitrary paths under /sdcard. Scoped storage and the media store cannot reach them, so this is the only way to read your saves.</string>
+
+    <string name="shizuku_title">App-private saves — optional</string>
+    <string name="shizuku_why">Android 11 removed access to Android/data for normal apps. All-files access does not cover it and the folder picker cannot target it. Shizuku, activated over adb, is the only route on a device without root.\n\nThis is where every GameCube, Wii, PlayStation, legacy Citra and Vita save lives, along with Eden\'s profiles.dat.</string>
+    <string name="shizuku_pending">Not set up yet. Everything in shared storage still works without it.</string>
+
+    <string name="legend">saves · states · keys · skipped</string>
 </resources>
