@@ -54,6 +54,8 @@ public class MainActivity extends Activity {
                 v -> startActivity(new Intent(this, VersionsActivity.class)));
         ((Button) findViewById(R.id.btn_drive)).setOnClickListener(
                 v -> startActivity(new Intent(this, DestinationActivity.class)));
+        ((Button) findViewById(R.id.btn_schedule)).setOnClickListener(
+                v -> startActivity(new Intent(this, ScheduleActivity.class)));
         ((Button) findViewById(R.id.btn_permissions)).setOnClickListener(
                 v -> startActivity(new Intent(this, PermissionActivity.class)));
     }
@@ -118,6 +120,17 @@ public class MainActivity extends Activity {
         statusHue.setBackgroundColor(getResources().getColor(colorRes, null));
     }
 
+    private String scheduleState() {
+        Settings s = Prefs.settings(this);
+        RunLog log = Prefs.log(this);
+        String base = s.describeSchedule();
+        if (log.consecutiveFailures() > 0) {
+            return base + " · " + log.consecutiveFailures() + " failed in a row";
+        }
+        RunLog.Run last = log.last();
+        return last == null ? base : base + " · last run " + (last.ok ? "ok" : "FAILED");
+    }
+
     private String destinationState() {
         switch (Destination.effective(this)) {
             case DRIVE:
@@ -141,6 +154,7 @@ public class MainActivity extends Activity {
             b.append("            ").append(s.shizuku.detail).append('\n');
         }
         b.append("backups to  ").append(destinationState()).append('\n');
+        b.append("schedule    ").append(scheduleState()).append('\n');
         if (s.registry != null) {
             b.append("registry    v").append(s.registry.registryVersion())
                     .append(", ").append(s.registry.emulators().size()).append(" emulators, ")

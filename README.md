@@ -55,7 +55,8 @@ root would read those, and the app does not pretend otherwise — the files are 
 backup's manifest and named after a run, never skipped silently.
 
 Google Drive works, over the raw REST API with a `drive.file` scope that can only see the app's
-own files. Still to come: scheduled backups and retention.
+own files. Backups can run on a schedule, daily or weekly, on charge and on Wi-Fi, and old
+versions are pruned once there are more than you asked to keep.
 
 ## Design
 
@@ -128,6 +129,37 @@ Three destinations, and you can change between them at any time without losing a
 
 All three write the identical tree, so a version written to one restores exactly like a
 version written to another.
+
+## Automatic backups
+
+Daily or weekly, through the framework `JobScheduler`, persisted across reboots, by default only
+on charge and on Wi-Fi. The work runs inside the job rather than in a foreground service, because
+Android 12 forbids starting one from the background and a schedule that only works while the app
+is open is not a schedule.
+
+A job has a bounded runtime, roughly ten minutes. A first backup of several hundred megabytes can
+exceed it, so the Automatic backups screen says to run that one by hand; every later run is an
+incremental measured in seconds. If the system does stop a job, the attempt is recorded as a
+failure with that reason rather than disappearing.
+
+**Three failed scheduled runs in a row turn the schedule off** and raise a notification. A job
+retrying quietly forever is worse than no backup, because you believe you are covered. Every run,
+manual or scheduled, is in a log on that screen, shareable as plain text.
+
+## What gets deleted, and what never does
+
+Retention keeps the newest N versions, 20 by default. Three things are never removed:
+
+- **The newest version.** A store that prunes itself to empty is not a backup.
+- **Pre-restore snapshots**, which exist precisely because something was about to be overwritten.
+- **Any version a kept version's chain extracts from.** Deleting the full at the base of a chain
+  turns every incremental above it into an archive that restores to nothing, and the failure
+  would only appear at the moment the backup was needed.
+
+Each version records which versions its chains depend on, so pruning never has to guess and never
+has to download twenty manifests to find out. A version written before this was recorded is
+treated as depending on everything older than it, which is the conservative reading and resolves
+itself as those versions age out.
 
 ## Two things to know
 

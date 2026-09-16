@@ -60,6 +60,10 @@ $SRC/GameNames.java
 $SRC/UploadDecision.java
 $SRC/DriveApi.java
 $SRC/OAuthClientInput.java
+$SRC/RetentionPolicy.java
+$SRC/Settings.java
+$SRC/JobSpec.java
+$SRC/RunLog.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java

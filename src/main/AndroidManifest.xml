@@ -63,9 +63,17 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Runs the periodic backup. BIND_JOB_SERVICE is mandatory: without it the framework
+             refuses to bind and the job never runs, silently. -->
+        <service android:name=".BackupJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <activity android:name=".GroupsActivity" android:exported="false"
             android:parentActivityName=".TargetsActivity" />
 
+        <activity android:name=".ScheduleActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
         <activity android:name=".OnboardingActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
         <activity android:name=".DestinationActivity" android:exported="false"

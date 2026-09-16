@@ -184,6 +184,69 @@ class BackupRoundTripTest {
     }
 
     @Test
+    @DisplayName("retention removes old versions, and never one a kept chain still needs")
+    void retentionPrunesButKeepsTheChain(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        Path store = tmp.resolve("store");
+        LocalFolderSink sink = new LocalFolderSink(store.toString());
+        write(ext.resolve("saves/a.dat"), "v1");
+        write(ext.resolve("cards/c.bin"), "card");
+
+        // Six versions. Only "saves" changes, so every version after the first is an incremental
+        // that still extracts "cards" from v1.
+        String first = runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT).versionId;
+        for (int i = 2; i <= 6; i++) {
+            write(ext.resolve("saves/a.dat"), "v" + i);
+            runner(ext, sink)
+                    .withRetention(new RetentionPolicy(3, RetentionPolicy.UNLIMITED))
+                    .run(null, "manual", i * 1_000L, BackupRunner.SILENT);
+        }
+
+        List<String> left = sink.listVersions();
+        assertTrue(left.size() < 6, "nothing was pruned: " + left);
+        assertTrue(left.contains(first),
+                "pruned the version every later chain extracts 'cards' from: " + left);
+
+        // The index on disk agrees with the directory, which is what the Backups screen reads.
+        BackupIndex index = BackupIndex.fromJson(new String(
+                sink.readRootFile(BackupIndex.FILE_NAME), java.nio.charset.StandardCharsets.UTF_8));
+        List<String> indexed = new java.util.ArrayList<>();
+        for (IndexEntry e : index.versions()) indexed.add(e.id);
+        java.util.Collections.sort(indexed);
+        java.util.Collections.sort(left);
+        assertEquals(left, indexed, "the index and the store disagree about what exists");
+
+        // And every surviving version can still be restored by hand, which is the actual promise.
+        for (String v : left) {
+            Path into = tmp.resolve("out-" + v);
+            handRestore(store, v, "cards", into);
+            assertEquals("card", Files.readString(into.resolve("c.bin")));
+        }
+    }
+
+    @Test
+    @DisplayName("a version is recorded with the versions its chains depend on")
+    void indexRecordsDependencies(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/a.dat"), "one");
+        write(ext.resolve("cards/c.bin"), "card");
+
+        String v1 = runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT).versionId;
+        write(ext.resolve("saves/a.dat"), "two");
+        String v2 = runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT).versionId;
+
+        BackupIndex index = BackupIndex.fromJson(new String(
+                sink.readRootFile(BackupIndex.FILE_NAME), java.nio.charset.StandardCharsets.UTF_8));
+        for (IndexEntry e : index.versions()) {
+            if (!e.id.equals(v2)) continue;
+            assertTrue(e.depsKnown(), "v2 recorded no dependency information");
+            assertTrue(e.deps.contains(v1),
+                    "v2 extracts 'cards' from v1 but does not say so: " + e.deps);
+        }
+    }
+
+    @Test
     @DisplayName("one unreadable file does not destroy the whole backup")
     void unreadableFileIsSkippedNotFatal(@TempDir Path tmp) throws Exception {
         // Found on a real device: DuckStation writes its memory cards mode 600, which even the

@@ -66,6 +66,7 @@ public final class BackupRunner {
     private String deviceModel;
     private int androidSdk;
     private String registryOverrideSha256;
+    private RetentionPolicy retention;
 
     public BackupRunner(TargetRegistry registry, ScanEngine scanner, PathResolver resolver,
                         FileSource shared, FileSource appPrivate, BackupSink sink,
@@ -90,6 +91,15 @@ public final class BackupRunner {
 
     public BackupRunner withRegistryOverride(String sha256) {
         this.registryOverrideSha256 = sha256;
+        return this;
+    }
+
+    /**
+     * Prunes old versions after a successful run. Null, the default, never deletes anything,
+     * which is what the pre-restore snapshot path and every test rely on.
+     */
+    public BackupRunner withRetention(RetentionPolicy policy) {
+        this.retention = policy;
         return this;
     }
 
@@ -245,13 +255,49 @@ public final class BackupRunner {
         sink.writeFile(vid, "RESTORE.txt", RestoreScript.versionReadme(manifest).getBytes(StandardCharsets.UTF_8));
 
         BackupIndex updated = index.with(new IndexEntry(vid, nowMs, manifest.totalBytes(),
-                "prerestore".equals(kind), kind));
+                "prerestore".equals(kind), kind, IndexEntry.dependenciesOf(manifest)));
+
+        // Pruning happens before the index is written, so a version is only ever absent from the
+        // store after the index that referenced it has been replaced. The reverse order would
+        // leave the index pointing at archives that are already gone.
+        updated = prune(updated, problems);
+
         sink.writeRootFile(BackupIndex.FILE_NAME, updated.toJson().getBytes(StandardCharsets.UTF_8));
         sink.writeRootFile("RESTORE.txt",
                 RestoreScript.storeReadme(updated.versions()).getBytes(StandardCharsets.UTF_8));
 
         listener.onProgress(Progress.of(Progress.Phase.DONE, Sizes.human(archivedBytes) + " written"));
         return new Result(vid, manifest, false, archivedFiles, archivedBytes, problems);
+    }
+
+    /**
+     * Applies the retention policy, if one is set.
+     *
+     * <p>A failed deletion is reported and otherwise ignored. The backup that has just been
+     * written is the point of the run; refusing to record it because an old version could not be
+     * removed would turn a storage problem into a data-loss problem.
+     */
+    private BackupIndex prune(BackupIndex index, List<String> problems) {
+        if (retention == null) return index;
+        List<IndexEntry> kept = new ArrayList<>();
+        List<String> doomed = retention.toDelete(index.versions());
+        for (IndexEntry e : index.versions()) {
+            if (!doomed.contains(e.id)) {
+                kept.add(e);
+                continue;
+            }
+            try {
+                sink.deleteVersion(e.id);
+            } catch (Exception ex) {
+                problems.add("Could not remove the old backup " + e.id + ": " + message(ex));
+                kept.add(e);
+            }
+        }
+        return new BackupIndex(kept);
+    }
+
+    private static String message(Exception e) {
+        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 
     // ------------------------------------------------------------------ helpers

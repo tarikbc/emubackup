@@ -96,6 +96,8 @@ public class BackupService extends Service {
     private void runBackup() {
         String summary;
         boolean failed = false;
+        String versionId = null;
+        long bytes = 0;
         try {
             ScanSession session = ScanSession.run(this);
             if (!session.ok()) throw new IllegalStateException(session.registryError);
@@ -113,7 +115,8 @@ public class BackupService extends Service {
 
             BackupRunner runner = new BackupRunner(session.registry, scanner, resolver, shared,
                     appPrivate, sink, session.caps, apps, apps)
-                    .withDevice(appVersion(), android.os.Build.MODEL, android.os.Build.VERSION.SDK_INT);
+                    .withDevice(appVersion(), android.os.Build.MODEL, android.os.Build.VERSION.SDK_INT)
+                    .withRetention(Prefs.settings(this).retention());
 
             BackupRunner.Result r = runner.run(null, "manual", System.currentTimeMillis(),
                     new BackupRunner.Listener() {
@@ -125,6 +128,8 @@ public class BackupService extends Service {
                 summary = "Cancelled. Nothing was recorded.";
                 publish(Progress.of(Progress.Phase.CANCELLED, summary));
             } else {
+                versionId = r.versionId;
+                bytes = r.archivedBytes;
                 summary = r.versionId + " · " + Sizes.human(r.archivedBytes) + " written to "
                         + sink.describe();
                 // A bare count is useless: it tells you something is wrong and nothing about
@@ -143,6 +148,10 @@ public class BackupService extends Service {
         }
 
         Notifications.result(this, failed ? "Backup failed" : "Backup finished", summary);
+        // Manual runs go in the same log as scheduled ones. A history with half the runs missing
+        // is worse than none, because it reads as a complete record.
+        Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "manual",
+                !failed, versionId, bytes, summary));
         Listener l = LISTENER;
         if (l != null) l.onFinished(summary, failed);
 

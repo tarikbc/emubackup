@@ -18,7 +18,7 @@ import org.json.JSONObject;
  */
 public final class BackupIndex {
 
-    public static final int INDEX_VERSION = 1;
+    public static final int INDEX_VERSION = 2;
     public static final String FILE_NAME = "index.json";
 
     private final List<IndexEntry> versions;
@@ -73,6 +73,11 @@ public final class BackupIndex {
                 j.put("bytes", e.bytes);
                 j.put("pinned", e.pinned);
                 j.put("kind", e.kind);
+                if (e.deps != null) {
+                    JSONArray d = new JSONArray();
+                    for (String dep : e.deps) d.put(dep);
+                    j.put("deps", d);
+                }
                 a.put(j);
             }
             o.put("versions", a);
@@ -91,8 +96,14 @@ public final class BackupIndex {
             JSONArray a = o.optJSONArray("versions");
             if (a != null) for (int i = 0; i < a.length(); i++) {
                 JSONObject j = a.getJSONObject(i);
+                JSONArray d = j.optJSONArray("deps");
+                List<String> deps = null;
+                if (d != null) {
+                    deps = new ArrayList<>();
+                    for (int k = 0; k < d.length(); k++) deps.add(d.getString(k));
+                }
                 out.add(new IndexEntry(j.getString("id"), j.optLong("createdAtMs"), j.optLong("bytes"),
-                        j.optBoolean("pinned", false), j.optString("kind", "manual")));
+                        j.optBoolean("pinned", false), j.optString("kind", "manual"), deps));
             }
             return new BackupIndex(out);
             } catch (org.json.JSONException e) {
@@ -106,7 +117,7 @@ public final class BackupIndex {
         for (Manifest m : manifests) {
             String kind = m.version.contains("prerestore") ? "prerestore" : "manual";
             out.add(new IndexEntry(m.version, m.createdAtMs, m.totalBytes(),
-                    "prerestore".equals(kind), kind));
+                    "prerestore".equals(kind), kind, IndexEntry.dependenciesOf(m)));
         }
         return new BackupIndex(out);
     }
