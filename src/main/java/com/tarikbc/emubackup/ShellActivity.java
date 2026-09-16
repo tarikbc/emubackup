@@ -166,14 +166,20 @@ public class ShellActivity extends GamepadActivity {
         for (Dest d : Dest.values()) {
             TextView row = placeRow(d, 13);
             row.setGravity(Gravity.CENTER);
+            row.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
             if (d == Dest.HOME) {
+                // A compound drawable hugs the view's edge, not the text, so the tab wraps its
+                // text and is centred in its slot instead.
                 dot = Ui.dot(this, R.color.text_tertiary, 8);
                 android.graphics.drawable.Drawable dd = dot.getBackground();
                 dd.setBounds(0, 0, Ui.dp(this, 8), Ui.dp(this, 8));
                 row.setCompoundDrawablePadding(Ui.dp(this, 6));
                 row.setCompoundDrawables(dd, null, null, null);
             }
-            bar.addView(row, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
+            FrameLayout slot = new FrameLayout(this);
+            slot.addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Ui.dp(this, 48), Gravity.CENTER));
+            bar.addView(slot, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         dotWord = null;
         return bar;
@@ -227,8 +233,10 @@ public class ShellActivity extends GamepadActivity {
         p.refresh();
         legendFor(p);
         if (focusPane) {
+            // A pane that returns null has arranged its own focus (a list that must lay out
+            // first). Focusing the host instead would hand focus to its first descendant.
             View f = p.defaultFocus();
-            focusByDefault(f != null ? f : paneHost);
+            if (f != null) focusByDefault(f);
         }
     }
 

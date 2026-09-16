@@ -65,3 +65,7 @@ Synthetic events carry source 0 rather than 0x501, so they exercise the remap in
 is attached. Quit SideMount first (it contends for the USB connection) and use the serial;
 the Thor exposes two adb devices.
 
+The Thor's panel stays landscape whatever `wm user-rotation` says, so the tall form is checked
+on the SDK's `Pixel_7_Pro_API_Baklava` AVD (`emulator -avd Pixel_7_Pro_API_Baklava -no-window`,
+then `adb -s emulator-5554`). One BACK on the walkthrough lands on the shell.
+

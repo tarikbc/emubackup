@@ -163,6 +163,8 @@ final class GamesPane extends Pane {
         long now = m.input.nowMs;
         for (GameHistory.Entry e : m.games.values()) {
             if (!m.selected.contains(e.targetId) || !reg.hasTarget(e.targetId)) continue;
+            // A group with no bytes is a marker file, not a game.
+            if (e.group.bytes == 0) continue;
             Target t = reg.target(e.targetId);
             Emulator em = reg.emulatorOf(e.targetId);
             String badge = Consoles.badge(em.id, t.id);
@@ -190,15 +192,17 @@ final class GamesPane extends Pane {
                 status = "backed up " + Ago.format(e.lastBackedUpMs, now);
                 hue = R.color.text_secondary;
             }
-            out.add(new Row(e, e.targetId, badge, displayName(e, t, m.names), meta.toString(),
+            out.add(new Row(e, e.targetId, badge, displayName(e, t, m.names, badge), meta.toString(),
                     status, hue, Math.max(e.newestMtimeMs(), e.lastBackedUpMs)));
         }
         for (TargetScan ts : m.scan.scans) {
             if (ts.status != TargetStatus.TIER_UNAVAILABLE || !m.selected.contains(ts.targetId)) continue;
             Target t = reg.target(ts.targetId);
             Emulator em = reg.emulatorOf(ts.targetId);
+            // A shared folder is locked only when storage access itself is missing.
+            String need = t.tier == Tier.SHARED ? "needs storage access" : "needs extra access";
             out.add(new Row(null, ts.targetId, Consoles.badge(em.id, t.id), t.label,
-                    shortLabel(em), "needs extra access", R.color.text_tertiary, 0));
+                    shortLabel(em), need, R.color.text_tertiary, 0));
         }
         out.sort((a, b) -> {
             int c = Long.compare(b.sortKey, a.sortKey);
@@ -212,9 +216,12 @@ final class GamesPane extends Pane {
         return cut > 0 ? em.label.substring(0, cut) : em.label;
     }
 
-    private static String displayName(GameHistory.Entry e, Target t, GameNames names) {
+    private static String displayName(GameHistory.Entry e, Target t, GameNames names, String badge) {
         if (e.group.isWholeTarget()) return t.label;
         if (e.group.isUngrouped()) return "Other files in " + t.label;
+        if (!names.isKnown(e.group.gameIdKind, e.group.gameKey)) {
+            return Consoles.name(badge) + " title " + e.group.gameKey;
+        }
         return names.lookup(e.group.gameIdKind, e.group.gameKey);
     }
 
@@ -238,11 +245,14 @@ final class GamesPane extends Pane {
         t.setGravity(Gravity.CENTER);
         t.setFocusable(true);
         t.setClickable(true);
+        t.setTag(badge == null ? "" : badge);
         t.setOnClickListener(v -> {
             filter = badge;
             renderChips();
             renderList(-1);
-            v.requestFocus();
+            // The chips were rebuilt, so focus the one that now stands where this one was.
+            View again = chipBar.findViewWithTag(badge == null ? "" : badge);
+            if (again != null) again.requestFocus();
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -260,12 +270,20 @@ final class GamesPane extends Pane {
     private void renderList(int refocus) {
         shown.clear();
         for (Row r : all) if (filter == null || filter.equals(r.badge)) shown.add(r);
+        int games = 0, locked = 0;
+        for (Row r : shown) {
+            if (r.entry != null) games++;
+            else locked++;
+        }
         StringBuilder s = new StringBuilder();
-        s.append(shown.size()).append(shown.size() == 1 ? " game" : " games");
+        s.append(games).append(games == 1 ? " game" : " games");
+        if (locked > 0) s.append(" \u00b7 ").append(locked).append(locked == 1 ? " folder" : " folders")
+                .append(" locked");
         if (filter != null) s.append(" \u00b7 ").append(Consoles.name(filter));
         if (model != null && model.storeError != null) {
-            s.append(" \u00b7 ").append(Safety.whereName(model.input.where))
-                    .append(" could not be reached, so history is unknown");
+            s.append(" \u00b7 ").append(model.input.where == Safety.Where.DRIVE
+                    ? "Google Drive could not be reached" : "the backups could not be read")
+                    .append(", so history is unknown");
         }
         subtitle.setText(s);
         list.setAdapter(new Adapter());
@@ -274,18 +292,23 @@ final class GamesPane extends Pane {
 
     private void focusRow(int pos) {
         if (pos < 0 || list == null) return;
-        list.post(() -> {
-            RecyclerView.ViewHolder h = list.findViewHolderForAdapterPosition(pos);
-            if (h != null) {
-                h.itemView.requestFocus();
-                return;
-            }
-            list.scrollToPosition(pos);
-            list.post(() -> {
-                RecyclerView.ViewHolder h2 = list.findViewHolderForAdapterPosition(pos);
-                if (h2 != null) h2.itemView.requestFocus();
-            });
-        });
+        RecyclerView.ViewHolder h = list.findViewHolderForAdapterPosition(pos);
+        if (h != null) {
+            h.itemView.requestFocus();
+            return;
+        }
+        // Not laid out yet (a fresh adapter, or a pane that just came on screen). Rows exist
+        // only after the next layout pass, and pre-draw is the first moment after it.
+        list.scrollToPosition(pos);
+        list.getViewTreeObserver().addOnPreDrawListener(
+                new android.view.ViewTreeObserver.OnPreDrawListener() {
+                    @Override public boolean onPreDraw() {
+                        list.getViewTreeObserver().removeOnPreDrawListener(this);
+                        RecyclerView.ViewHolder h2 = list.findViewHolderForAdapterPosition(pos);
+                        if (h2 != null) h2.itemView.requestFocus();
+                        return true;
+                    }
+                });
     }
 
     private final class Adapter extends RecyclerView.Adapter<Holder> {
@@ -661,7 +684,10 @@ final class GamesPane extends Pane {
     @Override View defaultFocus() {
         view();
         if (open != null) return backupButton;
-        if (list != null && list.getChildCount() > 0) return list.getChildAt(0);
+        if (!shown.isEmpty()) {
+            focusRow(0);
+            return null;
+        }
         return chipBar != null && chipBar.getChildCount() > 0 ? chipBar.getChildAt(0) : null;
     }
 
