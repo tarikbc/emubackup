@@ -71,6 +71,13 @@ abstract class Pane {
         sheet = SheetView.show(over, title, body, secondary, primary, onPrimary);
     }
 
+    protected final void showSheet(String title, String body, String secondary, String primary,
+                                   Runnable onPrimary, Runnable onSecondary) {
+        ViewGroup over = host.paneHost();
+        if (sheet != null) sheet.dismiss();
+        sheet = SheetView.show(over, title, body, secondary, primary, onPrimary, onSecondary);
+    }
+
     protected final void showInputSheet(String title, String body, String initial,
                                         String secondary, String primary,
                                         java.util.function.Consumer<String> onPrimary) {

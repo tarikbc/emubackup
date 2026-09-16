@@ -31,6 +31,13 @@ public final class SheetView extends FrameLayout {
 
     public static SheetView show(ViewGroup host, String title, String body,
                                  String secondary, String primary, Runnable onPrimary) {
+        return show(host, title, body, secondary, primary, onPrimary, null);
+    }
+
+    /** @param onSecondary runs after the sheet closes on the secondary button; null = just close. */
+    public static SheetView show(ViewGroup host, String title, String body,
+                                 String secondary, String primary, Runnable onPrimary,
+                                 Runnable onSecondary) {
         Context c = host.getContext();
         SheetView sheet = new SheetView(host);
         sheet.setBackgroundColor(0xB3000000);
@@ -56,7 +63,10 @@ public final class SheetView extends FrameLayout {
         TextView cancel = null;
         if (secondary != null) {
             cancel = Ui.secondaryButton(c, secondary);
-            cancel.setOnClickListener(v -> sheet.dismiss());
+            cancel.setOnClickListener(v -> {
+                sheet.dismiss();
+                if (onSecondary != null) onSecondary.run();
+            });
             LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             clp.rightMargin = Ui.dp(c, 12);

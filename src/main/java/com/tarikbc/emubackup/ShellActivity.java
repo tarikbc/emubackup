@@ -56,22 +56,7 @@ public class ShellActivity extends GamepadActivity {
         panes[Dest.HOME.ordinal()] = new HomePane(this);
         panes[Dest.GAMES.ordinal()] = new GamesPane(this);
         panes[Dest.BACKUPS.ordinal()] = new BackupsPane(this);
-        panes[Dest.SETTINGS.ordinal()] = new LinksPane(this, "Settings", null,
-                new LinksPane.Link("Where backups go", "Google Drive, a folder you choose, or this device",
-                        () -> open(DestinationActivity.class)),
-                new LinksPane.Link("When backups run", "Daily, weekly, or only when you ask",
-                        () -> open(ScheduleActivity.class)),
-                new LinksPane.Link("Storage and extra access", "What EmuBackup is allowed to read",
-                        () -> open(PermissionActivity.class)),
-                "Advanced",
-                new LinksPane.Link("Every save folder", "Each place EmuBackup looks, with sizes",
-                        () -> open(TargetsActivity.class)),
-                new LinksPane.Link("Status details", "Everything the app knows, for a bug report",
-                        () -> open(StatusActivity.class)),
-                new LinksPane.Link("See the walkthrough again", null, () -> {
-                    Onboarding.reset(this);
-                    open(OnboardingActivity.class);
-                }));
+        panes[Dest.SETTINGS.ordinal()] = new SettingsPane(this);
 
         build();
         show(Dest.HOME, false);
@@ -334,7 +319,10 @@ public class ShellActivity extends GamepadActivity {
             case SET_UP_EXTRA_ACCESS: open(PermissionActivity.class); break;
             case CHOOSE_DESTINATION:
             case RECONNECT_DRIVE: open(DestinationActivity.class); break;
-            case SEE_WHAT_HAPPENED: open(ScheduleActivity.class); break;
+            case SEE_WHAT_HAPPENED:
+                show(Dest.SETTINGS, false);
+                ((SettingsPane) panes[Dest.SETTINGS.ordinal()]).open(SettingsPane.Section.ADVANCED);
+                break;
             case ALLOW_NOTIFICATIONS: askForNotifications(); break;
         }
     }

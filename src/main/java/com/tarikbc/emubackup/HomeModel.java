@@ -65,6 +65,12 @@ final class HomeModel {
         in.destinationUnavailable = Destination.chosenButUnavailable(ctx);
         in.scheduled = set.scheduled();
         in.scheduleDescription = set.describeSchedule();
+        if (set.scheduled() && !BackupJobScheduler.isScheduled(ctx)) {
+            // A force-stop (from Settings, or adb) drops every JobScheduler job the app owns,
+            // and the schedule would then silently be a setting with nothing behind it. Put it
+            // back rather than ask the person to toggle it; Settings still says so if this fails.
+            BackupJobScheduler.apply(ctx, set);
+        }
         in.consecutiveScheduledFailures = log.consecutiveFailures();
         for (RunLog.Run r : log.runs()) {
             // The newest backup run of either kind. A restore is a run too, but not this one.
