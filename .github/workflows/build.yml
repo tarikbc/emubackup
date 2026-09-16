@@ -8,6 +8,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Read-only by default. The release step needs to write, and only on a tag, but GitHub grants
+# permissions per job rather than per step, so this is the narrowest it goes.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
