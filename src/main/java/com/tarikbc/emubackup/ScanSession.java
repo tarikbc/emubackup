@@ -25,6 +25,17 @@ public final class ScanSession {
     /** Why app-private storage is or is not reachable. Never null. */
     public final ShizukuGate.Status shizuku;
 
+    /**
+     * What happened to {@code EmuBackup/targets.local.json}. Never null.
+     *
+     * <p>An override exists so that an emulator moving its save path can be fixed today rather
+     * than at the next release. That only helps if a broken one is loud: someone edits the file
+     * precisely because their saves are already at risk, and an app that silently falls back to
+     * the bundled paths would go on backing up the wrong folder while they believe they fixed
+     * it. Absent is fine and silent; present-but-unusable is not.
+     */
+    public final String overrideStatus;
+
     private final Map<String, TargetScan> byTarget = new LinkedHashMap<>();
 
     /**
@@ -38,12 +49,13 @@ public final class ScanSession {
             java.util.Collections.synchronizedMap(new java.util.EnumMap<>(Category.class));
 
     private ScanSession(TargetRegistry registry, Capabilities caps, List<TargetScan> scans,
-                        String registryError, ShizukuGate.Status shizuku) {
+                        String registryError, ShizukuGate.Status shizuku, String overrideStatus) {
         this.registry = registry;
         this.caps = caps;
         this.scans = scans;
         this.registryError = registryError;
         this.shizuku = shizuku;
+        this.overrideStatus = overrideStatus == null ? "none" : overrideStatus;
         for (TargetScan s : scans) byTarget.put(s.targetId, s);
     }
 
@@ -54,14 +66,20 @@ public final class ScanSession {
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                 DriveClient.of(ctx).configured());
 
+        Override ov = readOverride();
         TargetRegistry reg;
         try {
             reg = TargetRegistry.parseWithOverride(
-                    Assets.readString(ctx, "targets.json"), readOverride());
+                    Assets.readString(ctx, "targets.json"), ov.json);
         } catch (Exception e) {
             // A registry that will not load means the app would scan nothing at all. That is
             // the one failure that must never present as "no saves found".
-            return new ScanSession(null, caps, new ArrayList<>(), describe(e), shizuku);
+            // An override that parses as JSON but breaks the registry lands here, and the
+            // message is about the registry as a whole. Naming the override too is what tells
+            // someone which file to go and fix.
+            String why = describe(e) + (ov.json == null ? ""
+                    : "  (an override at " + OVERRIDE_PATH + " is being applied)");
+            return new ScanSession(null, caps, new ArrayList<>(), why, shizuku, ov.status);
         }
 
         PathResolver resolver = new PathResolver(Environment.getExternalStorageDirectory().getAbsolutePath());
@@ -74,7 +92,7 @@ public final class ScanSession {
         for (Emulator e : reg.emulators()) {
             out.addAll(engine.scanAll(e, e.targets));
         }
-        ScanSession session = new ScanSession(reg, caps, out, null, shizuku);
+        ScanSession session = new ScanSession(reg, caps, out, null, shizuku, ov.status);
         for (Category c : Category.values()) LAST_BYTES.put(c, session.bytesOf(c));
         return session;
     }
@@ -89,10 +107,29 @@ public final class ScanSession {
      * A user-supplied registry override, if present. Emulators move their save paths without
      * warning, and waiting for a release is the wrong answer when data is already at risk.
      */
-    private static String readOverride() {
+    static final String OVERRIDE_PATH = "EmuBackup/targets.local.json";
+
+    /** The override file's contents, and a one-line account of what happened to it. */
+    private static final class Override {
+        final String json;
+        final String status;
+
+        Override(String json, String status) {
+            this.json = json;
+            this.status = status;
+        }
+    }
+
+    private static Override readOverride() {
+        File f = new File(Environment.getExternalStorageDirectory(), OVERRIDE_PATH);
+        if (!f.isFile()) return new Override(null, "none");
+
+        // A cap, because this is parsed before anything else and a huge file would stall the
+        // scan. Reported rather than ignored: the file is there, so someone meant it.
+        if (f.length() > 1_000_000) {
+            return new Override(null, "IGNORED, larger than 1 MB: " + OVERRIDE_PATH);
+        }
         try {
-            File f = new File(Environment.getExternalStorageDirectory(), "EmuBackup/targets.local.json");
-            if (!f.isFile() || f.length() > 1_000_000) return null;
             byte[] b = new byte[(int) f.length()];
             try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
                 int n = 0;
@@ -102,9 +139,10 @@ public final class ScanSession {
                     n += r;
                 }
             }
-            return new String(b, java.nio.charset.StandardCharsets.UTF_8);
+            String json = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+            return new Override(json, "applied, sha256 " + Hashes.sha256(b).substring(0, 12));
         } catch (Exception e) {
-            return null;
+            return new Override(null, "UNREADABLE, so it is not being applied: " + describe(e));
         }
     }
 

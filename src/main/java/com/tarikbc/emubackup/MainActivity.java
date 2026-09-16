@@ -87,7 +87,8 @@ public class MainActivity extends Activity {
             hue(R.color.danger);
             headline.setText("Registry failed to load");
             subline.setText("No targets could be read, so nothing would be backed up.");
-            detail.setText(s.registryError);
+            detail.setText("none".equals(s.overrideStatus) ? s.registryError
+                    : s.registryError + "\n\noverride    " + s.overrideStatus);
             return;
         }
         if (!s.caps.allFiles) {
@@ -165,6 +166,9 @@ public class MainActivity extends Activity {
                     .append(set.includeStates ? " (included)\n" : " (not included)\n");
             b.append("keys        ").append(Sizes.human(s.bytesOf(Category.KEY)))
                     .append(set.includeKeys ? " (included)\n" : " (not included)\n");
+            if (!"none".equals(s.overrideStatus)) {
+                b.append("override    ").append(s.overrideStatus).append('\n');
+            }
             for (String w : s.registry.warnings()) b.append("warning     ").append(w).append('\n');
         }
         for (TargetScan p : s.problems()) {

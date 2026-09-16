@@ -11,6 +11,16 @@ save paths without warning, and waiting for a release is the wrong answer when y
 at stake. The override's SHA-256 is recorded in every manifest so a backup is always
 traceable to the rules that produced it.
 
+**The home screen says what happened to it**, in the status block: `applied` with the first
+twelve characters of its SHA-256, `UNREADABLE` with the reason, or `IGNORED` if it is over
+1 MB. Nothing is printed when there is no override, because most people do not have one.
+
+That line exists because the failure is otherwise invisible. Someone writes an override
+precisely when their saves are already at risk, and an app that silently fell back to the
+bundled paths would keep backing up the folder they were trying to move away from, while they
+believed they had fixed it. An override that parses but breaks the registry names itself in the
+error for the same reason.
+
 ## Emulator fields
 
 | Field | Required | Meaning |
