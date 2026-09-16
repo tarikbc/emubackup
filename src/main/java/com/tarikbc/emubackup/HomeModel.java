@@ -30,10 +30,13 @@ final class HomeModel {
     final GameNames names;
     /** Target ids the backup covers, per the current settings. */
     final java.util.Set<String> selected;
+    /** Eden profile usernames by save-folder name, when profiles.dat could be read. */
+    final Map<String, String> profileNames;
 
     private HomeModel(Safety.Report report, Safety.Input input, ScanSession scan,
                       String storeError, Map<String, GameHistory.Entry> games, String folderLabel,
-                      List<IndexEntry> index, GameNames names, java.util.Set<String> selected) {
+                      List<IndexEntry> index, GameNames names, java.util.Set<String> selected,
+                      Map<String, String> profileNames) {
         this.report = report;
         this.input = input;
         this.scan = scan;
@@ -43,6 +46,7 @@ final class HomeModel {
         this.index = index;
         this.names = names;
         this.selected = selected;
+        this.profileNames = profileNames;
     }
 
     static HomeModel load(Context ctx) {
@@ -147,7 +151,32 @@ final class HomeModel {
         }
         return new HomeModel(Safety.assess(in), in, s, vs.error, games,
                 in.where == Safety.Where.FOLDER ? Destination.folderLabel(ctx) : null,
-                vs.list, names, selected);
+                vs.list, names, selected, edenProfiles(s));
+    }
+
+    /**
+     * Eden names its profiles in profiles.dat, inside its own folder, so this reads through
+     * the same source the scan used: the privileged one when Shizuku is up, else nothing.
+     */
+    private static Map<String, String> edenProfiles(ScanSession s) {
+        Map<String, String> none = java.util.Collections.emptyMap();
+        if (s == null || !s.ok()) return none;
+        TargetScan ts = s.scanOf("eden-profiles");
+        if (ts == null || !ts.hasContent() || ts.resolvedRoot == null) return none;
+        String rel = null;
+        for (FileStat f : ts.files) if (f.path.endsWith("profiles.dat")) { rel = f.path; break; }
+        if (rel == null) return none;
+        try {
+            Target t = s.registry.target("eden-profiles");
+            FileSource src = t.tier == Tier.SHARED ? new LocalFileSource()
+                    : (s.shizuku.ready() ? new RemoteFileSource(ShizukuGate.service()) : null);
+            if (src == null) return none;
+            try (java.io.InputStream in = src.open(ts.resolvedRoot, rel)) {
+                return EdenProfiles.parse(in.readAllBytes());
+            }
+        } catch (Exception unreadable) {
+            return none;
+        }
     }
 
     /**

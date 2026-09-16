@@ -74,6 +74,7 @@ $SRC/When.java
 $SRC/RomHeaders.java
 $SRC/Sfo.java
 $SRC/TitleIds.java
+$SRC/EdenProfiles.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java

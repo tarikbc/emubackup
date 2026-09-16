@@ -172,7 +172,7 @@ final class GamesPane extends Pane {
             StringBuilder meta = new StringBuilder(Sizes.human(e.group.bytes))
                     .append(" \u00b7 ").append(shortLabel(em));
             if (e.group.profileKey != null) {
-                meta.append(" \u00b7 ").append(aliases.nameFor(e.group.profileKey));
+                meta.append(" \u00b7 ").append(profileName(e.group.profileKey));
             }
             String status;
             int hue;
@@ -210,6 +210,13 @@ final class GamesPane extends Pane {
             return c != 0 ? c : a.name.compareToIgnoreCase(b.name);
         });
         return out;
+    }
+
+    /** The person's own name for a profile, else what the emulator calls it, else its id. */
+    private String profileName(String uuid) {
+        if (aliases.hasAlias(uuid)) return aliases.nameFor(uuid);
+        String eden = model == null ? null : model.profileNames.get(uuid.toUpperCase(java.util.Locale.ROOT));
+        return eden != null ? eden : aliases.nameFor(uuid);
     }
 
     private static String shortLabel(Emulator em) {
@@ -488,7 +495,7 @@ final class GamesPane extends Pane {
         StringBuilder meta = new StringBuilder(shortLabel(em)).append(" \u00b7 ")
                 .append(Sizes.human(e.group.bytes)).append(" \u00b7 kept in ").append(t.label);
         if (e.group.profileKey != null) {
-            meta.append(" \u00b7 profile ").append(aliases.nameFor(e.group.profileKey));
+            meta.append(" \u00b7 profile ").append(profileName(e.group.profileKey));
         }
         col.addView(Ui.text(c, meta.toString(), 14, R.color.text_secondary), top(6));
         col.addView(Ui.text(c, r.status, 14, r.statusColor), top(2));
@@ -701,7 +708,7 @@ final class GamesPane extends Pane {
         if (open == null || open.entry == null || open.entry.group.profileKey == null) return;
         String uuid = open.entry.group.profileKey;
         showInputSheet("Rename this profile", "Only EmuBackup uses this name.",
-                aliases.nameFor(uuid), "Cancel", "Save", name -> {
+                profileName(uuid), "Cancel", "Save", name -> {
                     if (name.isEmpty()) return;
                     aliases.set(uuid, name);
                     onModel(model);
