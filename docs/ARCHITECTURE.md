@@ -173,7 +173,7 @@ Secondary win: a power user can drop `/sdcard/EmuBackup/targets.json` to overrid
 | Trap | Solution |
 |---|---|
 | 1 Saves among ROMs | Every target is `root` + globs. No "copy parent folder" code path exists |
-| 2 States dominate | `category: STATE` ⇒ default-off, own retention count, own global budget (default 512 MB) |
+| 2 States dominate | `category: STATE` ⇒ default-off, opt-in per install, and bounded by the store-wide size ceiling rather than a separate count. See "Retention as built". |
 | 3 BIOS + VMU mixed | `retroarch-vmu`: `recursive: false`, `include: ["vmu_save_*.bin","dc_nvmem*.bin"]`, `maxBytes: 32 MB` |
 | 4 Two 3DS sets | Separate emulators, distinct ids and roots; CI asserts they never share a root prefix |
 | 5 PS2 rolling backups | Own target, default-off, with a note explaining it multiplies size |
@@ -375,7 +375,7 @@ Two consequences worth noting, both simplifications: **`OAuthRedirectActivity` d
 
 ## 6. Restore
 
-`VersionsActivity` → `VersionDetailActivity` → `RestorePreviewActivity` (dry run, **never skippable**) → `RestoreActivity`.
+`VersionsActivity` → `RestorePreviewActivity` (dry run, **never skippable**) → `BackupService` in restore mode. The planned `VersionDetailActivity` and `RestoreActivity` were not built; the preview carries both jobs.
 
 `RestorePlanner` (pure) takes the resolved chain, the selected groups, and a fresh scan, and emits one action per file:
 
@@ -394,9 +394,9 @@ Overriding `CONFLICT_NEWER` requires a **per-target** toggle showing the count a
 
 **Write discipline:** write `<name>.ebtmp`, fsync, rename. A killed restore leaves stray temp files, never a half-written save.
 
-**Tier B restore ships behind an "Experimental" label.** Writing into `Android/data/<pkg>/` as shell UID relies on the MediaProvider FUSE layer deriving ownership from the path so the emulator can still read it. This is what every Shizuku backup tool depends on, but it is **not verified on this device**. So: a mandatory one-time round-trip self-test before the label drops, and a hard refusal to restore into a Tier B target whose package is not installed or whose root does not exist, since a tree created wholesale by shell may get wrong ownership.
+**Tier B restore is verified on hardware, and the "Experimental" label it was to ship behind was never needed.** Writing into `Android/data/<pkg>/` as shell UID works, and the reason is the group rather than the owner: every app carries `ext_data_rw` for its own external data, and files under `Android/data` are group-owned by it, so a file written by `shell` with group read/write is fully readable by the emulator that owns the folder. A GameCube save was deleted, restored through the app, and came back byte-identical with its modification time intact; see `PROVENANCE.md`. The hard refusal to restore into a Tier B target whose package is not installed, or whose root does not exist, remains, because a tree created wholesale by shell can still get wrong ownership.
 
-**The Eden `profiles.dat` case** — the exact near-miss that motivated the app. Switch saves are keyed to a profile UUID, so a save restored without its profile is orphaned. `eden-saves.coupledWith = ["eden-profiles"]` and `eden-profiles.critical = true`. `ProfileFingerprint` derives UUIDs **from path components** (`user/save/{account}/{USER_UUID}/{TITLE_ID}/`), not from the binary — robust, and needs no knowledge of the struct layout. It additionally records an opaque SHA-256 of `profiles.dat` and makes a clearly-labelled best-effort nickname parse, wrapped so malformed input cannot throw. Restoring saves without profiles is hard-blocked behind a red warning naming the specific UUID and requiring a non-default dialog button.
+**The Eden `profiles.dat` case** — the exact near-miss that motivated the app. Switch saves are keyed to a profile UUID, so a save restored without its profile is orphaned. `eden-saves.coupledWith = ["eden-profiles"]` and `eden-profiles.critical = true`. `ProfileAliases` derives UUIDs **from path components** (`user/save/{account}/{USER_UUID}/{TITLE_ID}/`), not from the binary — robust, and needs no knowledge of the struct layout. It additionally records an opaque SHA-256 of `profiles.dat` and makes a clearly-labelled best-effort nickname parse, wrapped so malformed input cannot throw. Restoring saves without profiles is hard-blocked behind a red warning naming the specific UUID and requiring a non-default dialog button.
 
 **Per-game restore** needs zero format change: a `SaveGroup` is a view over the manifest's file list, so `ArchiveReader` extracts only entries belonging to selected groups, and the zips stay whole for hand restore.
 
@@ -467,13 +467,21 @@ MainActivity (hub)
  │    └─ GroupsActivity     per-game / per-profile, segmented "By game | By profile"
  ├─ BackupActivity          live run, reads Progress from BackupService
  ├─ VersionsActivity
- │    └─ VersionDetailActivity      chain, Verify, Export plain zip
- │         └─ RestorePreviewActivity  dry-run diff, per-target + per-group selection
- │              └─ RestoreActivity
- ├─ SettingsActivity        destination, Drive link, schedule, retention, state budget, keys opt-in
- │    └─ DriveLinkActivity
- └─ LogActivity             run log, shareable
+ │    └─ RestorePreviewActivity  dry-run diff, per-target selection, and Verify
+ │         └─ VerifyActivity     reads every archive the chain needs, checks each checksum
+ ├─ DestinationActivity    Drive, a picked folder, or this device
+ │    └─ DriveLinkActivity      device-code flow
+ │         └─ DriveSetupActivity  paste your own OAuth client
+ ├─ ScheduleActivity       frequency, conditions, what to include, retention, and the run log
+ └─ PermissionActivity     all-files, Shizuku, and the first-run walkthrough again
 ```
+
+**This tree is what shipped, and it differs from the plan above it.** There is no
+`VersionDetailActivity`: Verify hangs off the restore preview, because that is the screen
+someone is on when they ask whether a backup is good. There is no `SettingsActivity` or
+`LogActivity` either; settings split by subject into `DestinationActivity` and
+`ScheduleActivity`, and the run log lives on the schedule screen, where the decision to rely
+on a schedule is actually made. `OnboardingActivity` is new and was not planned at all.
 
 Two custom `View`s, matching Whammy's restraint. **`SizeBarView`** is a stacked saves/states/keys/skipped bar — it doubles as the sanity check against trap 1, since a bar suddenly dominated by one segment is visible proof the allow-list broke. **`ProgressRingView`** is adapted from Whammy. `FlowLayout` and `Snackbar` port over unchanged.
 
@@ -481,9 +489,18 @@ Two custom `View`s, matching Whammy's restraint. **`SizeBarView`** is a stacked 
 
 Flat package `com.tarikbc.emubackup`. **Roughly 80 classes, about 45 of them `android.*`-free.** The two runners being pure is the highest-leverage decision here: backup and restore are testable end-to-end on the JVM with no emulator and no device.
 
-**Pure (in `test.sh`):** `TargetRegistry`, `Emulator`, `Target`, `Grouping`, `PathMatcher`, `PathPattern`, `PathResolver`, `FileSource`/`FileSink`/`FileStat`, `LocalFileSource`/`LocalFileSink`, `RemoteFileSource`/`RemoteFileSink`, `Capabilities`, `ScanEngine`, `DiffEngine`, `GroupBuilder`, `SaveGroup`, `ArchivePolicy`, `ArchiveWriter`, `ArchiveReader`, `Hashes`, `BackupRunner`, `RestoreRunner`, `RestorePlanner`, `ProfileFingerprint`, `RunCheckpoint`, `Progress`, `RunLog`, `Manifest`, `ManifestIO`, `BackupIndex`, `VersionId`, `RetentionPolicy`, `RestoreScript`, `Sizes`, `BackupSink`, `LocalFolderSink`, `DriveApi`, `DriveSink`, `DriveAuth`, `DeviceCodeAuth`, `TokenEnvelope`, `JobSpec`, `GameNames`, `RomFilenameParser`, `Settings`.
+**Pure (in `test.sh`):** `TargetRegistry`, `Emulator`, `Target`, `Grouping`, `PathMatcher`, `PathPattern`, `PathResolver`, `FileSource`/`FileSink`/`FileStat`, `LocalFileSource`/`LocalFileSink`, `RemoteFileSource`/`RemoteFileSink`, `Capabilities`, `ScanEngine`, `DiffEngine`, `GroupBuilder`, `SaveGroup`, `ArchivePolicy`, `ArchiveWriter`, `ArchiveReader`, `Hashes`, `BackupRunner`, `RestoreRunner`, `RestorePlanner`, `Progress`, `RunLog`, `Manifest`, `ManifestTarget`, `ManifestFile`, `BackupIndex`, `IndexEntry`, `VersionId`, `RetentionPolicy`, `VerifyRunner`, `RestoreScript`, `Sizes`, `BackupSink`, `LocalFolderSink`, `DriveApi`, `DriveSink`, `DeviceCodeAuth`, `OAuthClientInput`, `TokenEnvelope`, `JobSpec`, `GameNames`, `RomFilenameParser`, `Settings`.
 
-**Android surface:** the Activities above, plus `BackupService`, `BackupJobService`, `BackupJobScheduler`, `Notifications`, `Prefs`, `AppInfo`, `Assets`, `PrivilegedFileService` (runs as shell UID), `ShizukuGate`, `ShizukuProbe`, `Permissions`, `CapabilityProbe`, `TokenStore`, `RomIndexer`, `ProfileAliases`, the adapters, and the two custom views.
+`RunCheckpoint` was planned and never built; `RunLog` does that job and records every run
+rather than only the last. `DriveAuth` became `DeviceCodeAuth`, and `ManifestIO` is folded into
+`Manifest` itself. The authoritative list is `PURE_SRCS` in `test.sh`, which CI enforces: a file
+listed there that imports `android.*` fails the build.
+
+**Android surface:** the Activities above, plus `BackupService`, `BackupJobService`, `BackupJobScheduler`, `Notifications`, `Prefs`, `Stores`, `Destination`, `DriveClient`, `DriveTokens`, `Onboarding`, `ScanSession`, `RestoreSession`, `AppInfo`, `Assets`, `PrivilegedFileService` (runs as shell UID), `ShizukuGate`, `Permissions`, `TokenStore`, `RomIndexer`, `ProfileAliases`, the adapters, and the custom views.
+
+`ShizukuProbe` and `CapabilityProbe` were planned as separate classes and are folded into
+`ShizukuGate` and `Capabilities`. `Stores`, `Destination`,
+`DriveClient` and `Onboarding` were not planned and exist because the shipped app needed them.
 
 ## 12. Build and CI changes versus Whammy
 
@@ -513,7 +530,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 4. `DiffEngine`, `ArchiveWriter`, `Manifest`, `RestoreScript`, `LocalFolderSink`, `BackupRunner`, `BackupService`. Full local Tier A backup.
 5. `ArchiveReader`, `RestorePlanner`, `RestoreRunner`, pre-restore snapshot, `RestorePreviewActivity`. Gated by `ArchiveRoundTripTest`.
 6. `GroupBuilder`, `PathPattern`, `RomIndexer`, `GameNames`, `GroupsActivity`. Readable per-game UI.
-7. Shizuku: gate, shell, probe, Tier B backup. Tier B **restore** stays Experimental until the on-device round-trip passes.
+7. Shizuku: gate, privileged service, probe, Tier B backup and restore. The on-device round-trip passed, so no Experimental label shipped.
 8. Drive: `DriveApi`, `DriveSink`, auth, `TokenStore`.
 9. `BackupJobService`, `RunCheckpoint`, `RetentionPolicy`, notifications, `LogActivity`.
 10. Verify, export, registry override, README, screenshots, tag release.
@@ -539,7 +556,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 
 **On-device, after step 5:** back up Eden saves, delete a single game's save folder, restore only that group, and confirm Eden still loads it. Then the harder case — rename `profiles.dat`, attempt a saves-only restore, and confirm the red coupling warning fires.
 
-**On-device, after step 7:** confirm `ShizukuProbe` reports uid 2000, and that Dolphin's `.gci` files appear. Run the Tier B write round-trip self-test before clearing the Experimental label.
+**On-device, after step 7:** confirm the privileged service reports uid 2000, and that Dolphin's `.gci` files appear. Both done, along with the write round-trip; see `PROVENANCE.md`.
 
 **On-device, after step 8:** link Drive, back up with `ps2-states` enabled to force a ~386 MB resumable upload, kill the app mid-upload, and confirm it resumes mid-file rather than restarting.
 
@@ -548,7 +565,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 # Risks and open questions
 
 1. **Shizuku must be re-activated after every reboot**, so Tier B silently goes stale. Mitigated by the staleness rule in section 3 (amber past 3 days, red past 7) and by scheduled runs reporting Tier B as skipped rather than failing. *The earlier `newProcess` deprecation risk is resolved: we use the supported `bindUserService` API instead.*
-2. **Tier B restore file ownership is unverified on this device.** Mitigated by the Experimental flag, the mandatory round-trip self-test, and refusal to restore into a non-installed package.
+2. ~~Tier B restore file ownership is unverified on this device.~~ **Resolved 2026-09-16.** Verified by round-trip on real data; the mechanism is the `ext_data_rw` group, not the owner. Refusal to restore into a non-installed package remains.
 3. **A silently wrong allow-list** — either 4 GB of BIOS in the archive, or a save the user believes is covered and is not. This is the failure that would make EmuBackup worse than nothing. Mitigated by the CI registry gates, `OVER_CAP` refusing rather than truncating, per-target byte counts on the pre-run screen, and `SizeBarView` making a blowout visible.
 4. **Google OAuth "Testing" status revoking refresh tokens every 7 days.** Mitigated by the bold setup step, the `invalid_grant` error mapping, and the three-failure escalation.
 5. **`profiles.dat` semantics are unverified.** Mitigated by reading UUIDs from path components rather than the binary, and making aliases user-editable.
@@ -565,6 +582,10 @@ States are off by default, but when enabled they go to Drive like everything els
 - Per-file incrementals keep the common case small. PS2 states are 30 files at ~13 MB, so a session that touches three states costs ~40 MB, not 386 MB.
 - The real cost driver is the periodic re-base to a new full, which `ArchivePolicy` triggers at chain length 8 or 50% drift.
 
-**Retention defaults:** 20 versions for `SAVE`, **3** for `STATE`, pre-restore snapshots pinned forever. Separate counts matter precisely because states are large and cheap to lose. `SettingsActivity` shows a live "estimated Drive usage" figure from the current retention settings, and `RetentionPolicy` never prunes a full that a later incremental still depends on.
+**Retention as built:** a version count, default 20, and an optional total size ceiling, both on the whole store. Pre-restore snapshots are pinned forever, the newest version is never removed, and `RetentionPolicy` never prunes a version that a kept chain still extracts from.
+
+**This deviates from the separate per-category counts specified above, deliberately.** Pruning save states out of a version while keeping its saves means deleting individual archives from a version that has already been written, marking them in its manifest, re-uploading that manifest, and teaching restore and verify to expect a version that is intentionally incomplete. That is a format change and a new class of partially-valid backup, in the component whose entire job is to not lose data.
+
+The size ceiling solves the problem the per-category count was for. States are the only thing large enough to make a count-based limit dangerous, and a ceiling bounds them directly and understandably: "keep 20 versions, and at most 10 GB". The Automatic backups screen warns when states are enabled with no ceiling set, quoting what a full backup of them costs on this device.
 
 **Resolved:** removable SD card is out of v1; Drive auth is the device-code flow; states upload to Drive. No open questions block implementation.

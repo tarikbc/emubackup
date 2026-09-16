@@ -27,6 +27,8 @@ import java.util.Locale;
  */
 public class ScheduleActivity extends Activity {
 
+    private static final long GB = 1024L * 1024L * 1024L;
+
     private LinearLayout root;
 
     @Override protected void onCreate(Bundle saved) {
@@ -110,6 +112,34 @@ public class ScheduleActivity extends Activity {
                         () -> set(s.withKeep(RetentionPolicy.UNLIMITED))));
         keep.addView(body("A backup that another one still builds on is never removed, and "
                 + "neither is the snapshot taken before a restore."));
+
+        // --- size ceiling ---
+        LinearLayout cap = card(s.budgetBytes != RetentionPolicy.UNLIMITED);
+        cap.addView(cardTitle("Total size"));
+        cap.addView(body(s.budgetBytes == RetentionPolicy.UNLIMITED
+                ? "No limit. The count above is the only thing removing old backups."
+                : "At most " + Sizes.human(s.budgetBytes)
+                        + ". The oldest go once the store is larger than this."));
+        row(cap,
+                choice("2 GB", s.budgetBytes == 2L * GB, () -> set(s.withBudget(2L * GB))),
+                choice("10 GB", s.budgetBytes == 10L * GB, () -> set(s.withBudget(10L * GB))),
+                choice("50 GB", s.budgetBytes == 50L * GB, () -> set(s.withBudget(50L * GB))),
+                choice("No limit", s.budgetBytes == RetentionPolicy.UNLIMITED,
+                        () -> set(s.withBudget(RetentionPolicy.UNLIMITED))));
+        if (s.includeStates && s.budgetBytes == RetentionPolicy.UNLIMITED) {
+            // Save states are the only thing here big enough to make a count-based limit
+            // dangerous. On this device they are 496 MB, so twenty versions of them is ten
+            // gigabytes of someone's Drive quota spent without being asked.
+            TextView warn = body("Save states are on and there is no size limit. "
+                    + Sizes.human(ScanSession.lastKnownBytes(Category.STATE))
+                    + " per full backup, kept " + (s.keepVersions == RetentionPolicy.UNLIMITED
+                            ? "forever" : s.keepVersions + " deep")
+                    + ", is a lot of storage to use without deciding to.");
+            warn.setTextColor(color(R.color.warn));
+            cap.addView(warn);
+        }
+        cap.addView(body("The newest backup is never removed to meet this, so a limit smaller "
+                + "than one backup does not empty the store."));
 
         // --- history ---
         RunLog log = Prefs.log(this);

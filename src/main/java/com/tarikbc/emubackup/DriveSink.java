@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -169,11 +168,23 @@ public final class DriveSink implements BackupSink {
         for (DriveApi.RemoteFile f : api.listFolder(root())) {
             if (name.equals(f.name)) {
                 try (InputStream in = api.download(f.id)) {
-                    return DriveApi.readAll(in).getBytes(StandardCharsets.UTF_8);
+                    // Bytes, not a decoded String re-encoded. The interface returns bytes and the
+                    // round trip through UTF-8 is lossless only for text that happens to be valid
+                    // UTF-8. It is, today, for index.json and RESTORE.txt. The first root file
+                    // that is not would be corrupted silently, which is the worst way to find out.
+                    return readFully(in);
                 }
             }
         }
         throw new IOException("not in Drive: " + name);
+    }
+
+    private static byte[] readFully(InputStream in) throws IOException {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+        return out.toByteArray();
     }
 
     @Override public boolean hasRootFile(String name) {
