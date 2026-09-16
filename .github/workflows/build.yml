@@ -40,11 +40,12 @@ jobs:
         env:
           VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
           VERSION_CODE: ${{ github.run_number }}
-          # Absent on forks and on non-tag builds. An empty client id is a supported
-          # configuration: the app falls back to a local folder. Scoped to this step only,
-          # never written to $GITHUB_ENV.
-          EMUBACKUP_DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
-          EMUBACKUP_DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+          # No Drive credentials are passed here, deliberately, and adding them would be a
+          # policy change rather than a convenience. A published APK cannot hide an OAuth
+          # secret, so baking one in would put every user's traffic on one Cloud project:
+          # shared quota, one suspendable project, and the maintainer's support address on
+          # everyone's consent screen. Released APKs are therefore local-folder builds, and
+          # Drive is enabled per user with their own client. See docs/DRIVE_SETUP.md.
           KEYSTORE: ${{ startsWith(github.ref, 'refs/tags/v') && 'keystore/emubackup-release.jks' || '' }}
           STOREPASS: ${{ secrets.RELEASE_STOREPASS }}
           KEYPASS: ${{ secrets.RELEASE_KEYPASS }}
