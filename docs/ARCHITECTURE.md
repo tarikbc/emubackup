@@ -387,7 +387,7 @@ Two consequences worth noting, both simplifications: **`OAuthRedirectActivity` d
 
 ## 6. Restore
 
-`VersionsActivity` → `RestorePreviewActivity` (dry run, **never skippable**) → `BackupService` in restore mode. The planned `VersionDetailActivity` and `RestoreActivity` were not built; the preview carries both jobs.
+`BackupsPane` → `RestorePreviewActivity` (dry run, **never skippable**) → `BackupService` in restore mode for a whole backup; `GamesPane` → an in-pane sheet built from the same `RestoreSession`, filtered to one game's paths, → `BackupService` for a single game. The planned `VersionDetailActivity` and `RestoreActivity` were not built; the preview and the sheet carry both jobs.
 
 `RestorePlanner` (pure) takes the resolved chain, the selected groups, and a fresh scan, and emits one action per file:
 
@@ -472,43 +472,51 @@ Grouping is declared per target in the registry:
 
 ## 10. Screens
 
+The visual system, the two layout forms and the input model are in `DESIGN.md` and
+`INPUT.md`. This is the map.
+
 ```
-ShellActivity (rail + Home)
- ├─ PermissionActivity      all-files card + Shizuku card
- ├─ TargetsActivity         the registry by emulator; include toggles
- │    └─ GroupsActivity     per-game / per-profile, segmented "By game | By profile"
- ├─ BackupActivity          live run, reads Progress from BackupService
- ├─ VersionsActivity
- │    └─ RestorePreviewActivity  dry-run diff, per-target selection, and Verify
- │         └─ VerifyActivity     reads every archive the chain needs, checks each checksum
- ├─ DestinationActivity    Drive, a picked folder, or this device
- │    └─ DriveLinkActivity      device-code flow
- │         └─ DriveSetupActivity  paste your own OAuth client
- ├─ ScheduleActivity       frequency, conditions, what to include, retention, and the run log
- └─ PermissionActivity     all-files, Shizuku, and the first-run walkthrough again
+ShellActivity                 the launcher: four places, one pane, the legend bar
+ ├─ HomePane                  one headline, one action, four facts (Safety)
+ ├─ GamesPane                 every game most recently played first; game page with
+ │                            its own timeline; per-game restore through a sheet
+ ├─ BackupsPane               every backup by date; backup page
+ │    ├─ RestorePreviewActivity  put back everything: dry-run diff, per-target choice
+ │    ├─ VerifyActivity          reads every archive the chain needs, checks each checksum
+ │    └─ ExportActivity          one version as a single zip
+ └─ SettingsPane              sections; chips in place; hand-offs below
+      ├─ DestinationActivity     Drive, a picked folder, or this device
+      │    └─ DriveLinkActivity      device-code flow
+      │         └─ DriveSetupActivity  paste your own OAuth client
+      ├─ PermissionActivity      storage access, Shizuku
+      └─ Advanced: TargetsActivity (→ GroupsActivity), StatusActivity, run history,
+                   the walkthrough again (OnboardingActivity)
+BackupActivity                live run, reads Progress from BackupService
+OnboardingActivity            seven beats on top of the shell; B lands on Home
 ```
 
-**This tree is what shipped, and it differs from the plan above it.** There is no
-`VersionDetailActivity`: Verify hangs off the restore preview, because that is the screen
-someone is on when they ask whether a backup is good. There is no `SettingsActivity` or
-`LogActivity` either; settings split by subject into `DestinationActivity` and
-`ScheduleActivity`, and the run log lives on the schedule screen, where the decision to rely
-on a schedule is actually made. `OnboardingActivity` is new and was not planned at all.
+The panes are plain views hosted by the shell, not Activities, so a rotation or a switch
+between places never reloads anything. `GamepadActivity` is the base of every Activity and
+owns the button mapping and the legend. `SheetView` replaces every `AlertDialog` in the new
+screens, because a dialog is a separate window the gamepad handler cannot see.
 
-Two custom `View`s, matching Whammy's restraint. **`SizeBarView`** is a stacked saves/states/keys/skipped bar — it doubles as the sanity check against trap 1, since a bar suddenly dominated by one segment is visible proof the allow-list broke. **`ProgressRingView`** is adapted from Whammy. `FlowLayout` and `Snackbar` port over unchanged.
+`HomeModel` is the one load: scan, run log, store index, cached manifests, settings and
+permissions, folded into `Safety` for Home and `GameHistory` for the games. `ManifestCache`
+keeps every manifest under `files/manifests/<store>/`, keyed by store because version ids are
+per-store counters. `VerifyMemory` remembers each check per store and version.
 
 ## 11. Classes
 
 Flat package `com.tarikbc.emubackup`. **Roughly 80 classes, about 45 of them `android.*`-free.** The two runners being pure is the highest-leverage decision here: backup and restore are testable end-to-end on the JVM with no emulator and no device.
 
-**Pure (in `test.sh`):** `TargetRegistry`, `Emulator`, `Target`, `Grouping`, `PathMatcher`, `PathPattern`, `PathResolver`, `FileSource`/`FileSink`/`FileStat`, `LocalFileSource`/`LocalFileSink`, `RemoteFileSource`/`RemoteFileSink`, `Capabilities`, `ScanEngine`, `DiffEngine`, `GroupBuilder`, `SaveGroup`, `ArchivePolicy`, `ArchiveWriter`, `ArchiveReader`, `Hashes`, `BackupRunner`, `RestoreRunner`, `RestorePlanner`, `Progress`, `RunLog`, `Manifest`, `ManifestTarget`, `ManifestFile`, `BackupIndex`, `IndexEntry`, `VersionId`, `RetentionPolicy`, `VerifyRunner`, `RestoreScript`, `Sizes`, `BackupSink`, `LocalFolderSink`, `DriveApi`, `DriveSink`, `DeviceCodeAuth`, `OAuthClientInput`, `TokenEnvelope`, `JobSpec`, `GameNames`, `RomFilenameParser`, `Settings`.
+**Pure (in `test.sh`):** `TargetRegistry`, `Emulator`, `Target`, `Grouping`, `PathMatcher`, `PathPattern`, `PathResolver`, `FileSource`/`FileSink`/`FileStat`, `LocalFileSource`/`LocalFileSink`, `RemoteFileSource`/`RemoteFileSink`, `Capabilities`, `ScanEngine`, `DiffEngine`, `GroupBuilder`, `SaveGroup`, `ArchivePolicy`, `ArchiveWriter`, `ArchiveReader`, `Hashes`, `BackupRunner`, `RestoreRunner`, `RestorePlanner`, `Progress`, `RunLog`, `Manifest`, `ManifestTarget`, `ManifestFile`, `BackupIndex`, `IndexEntry`, `VersionId`, `RetentionPolicy`, `VerifyRunner`, `RestoreScript`, `Sizes`, `BackupSink`, `LocalFolderSink`, `DriveApi`, `DriveSink`, `DeviceCodeAuth`, `OAuthClientInput`, `TokenEnvelope`, `JobSpec`, `GameNames`, `RomFilenameParser`, `Settings`, `Safety`, `GameHistory`, `Ago`, `When`, `Consoles`.
 
 `RunCheckpoint` was planned and never built; `RunLog` does that job and records every run
 rather than only the last. `DriveAuth` became `DeviceCodeAuth`, and `ManifestIO` is folded into
 `Manifest` itself. The authoritative list is `PURE_SRCS` in `test.sh`, which CI enforces: a file
 listed there that imports `android.*` fails the build.
 
-**Android surface:** the Activities above, plus `BackupService`, `BackupJobService`, `BackupJobScheduler`, `Notifications`, `Prefs`, `Stores`, `Destination`, `DriveClient`, `DriveTokens`, `Onboarding`, `ScanSession`, `RestoreSession`, `AppInfo`, `Assets`, `PrivilegedFileService` (runs as shell UID), `ShizukuGate`, `Permissions`, `TokenStore`, `RomIndexer`, `ProfileAliases`, the adapters, and the custom views.
+**Android surface:** the Activities and panes above, `GamepadActivity`, `LegendBar`, `SheetView`, `Ui`, `HomeModel`, `ManifestCache`, `VerifyMemory`, plus `BackupService`, `BackupJobService`, `BackupJobScheduler`, `Notifications`, `Prefs`, `Stores`, `Destination`, `DriveClient`, `DriveTokens`, `Onboarding`, `ScanSession`, `RestoreSession`, `AppInfo`, `Assets`, `PrivilegedFileService` (runs as shell UID), `ShizukuGate`, `Permissions`, `TokenStore`, `RomIndexer`, `ProfileAliases` and the adapters.
 
 `ShizukuProbe` and `CapabilityProbe` were planned as separate classes and are folded into
 `ShizukuGate` and `Capabilities`. `Stores`, `Destination`,
@@ -538,7 +546,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 
 1. `LICENSE`, `DESIGN.md`, `FORMAT.md`, `TARGETS.md`; scripts ported, an empty launcher Activity building.
 2. Registry + path logic + `TargetRegistryTest` with the full inventory. **Highest value per hour — the moment the registry lands, every trap is locked down by CI.**
-3. Tier A source/sink, `ScanEngine`, `TargetsActivity`, `SizeBarView`. First real value: "here is every save on your device, with sizes."
+3. Tier A source/sink, `ScanEngine`, `TargetsActivity`, `SizeBarView` (since removed with the hub). First real value: "here is every save on your device, with sizes."
 4. `DiffEngine`, `ArchiveWriter`, `Manifest`, `RestoreScript`, `LocalFolderSink`, `BackupRunner`, `BackupService`. Full local Tier A backup.
 5. `ArchiveReader`, `RestorePlanner`, `RestoreRunner`, pre-restore snapshot, `RestorePreviewActivity`. Gated by `ArchiveRoundTripTest`.
 6. `GroupBuilder`, `PathPattern`, `RomIndexer`, `GameNames`, `GroupsActivity`. Readable per-game UI.
@@ -578,7 +586,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 
 1. **Shizuku must be re-activated after every reboot**, so Tier B silently goes stale. Mitigated by the staleness rule in section 3 (amber past 3 days, red past 7) and by scheduled runs reporting Tier B as skipped rather than failing. *The earlier `newProcess` deprecation risk is resolved: we use the supported `bindUserService` API instead.*
 2. ~~Tier B restore file ownership is unverified on this device.~~ **Resolved 2026-09-16.** Verified by round-trip on real data; the mechanism is the `ext_data_rw` group, not the owner. Refusal to restore into a non-installed package remains.
-3. **A silently wrong allow-list** — either 4 GB of BIOS in the archive, or a save the user believes is covered and is not. This is the failure that would make EmuBackup worse than nothing. Mitigated by the CI registry gates, `OVER_CAP` refusing rather than truncating, per-target byte counts on the pre-run screen, and `SizeBarView` making a blowout visible.
+3. **A silently wrong allow-list** — either 4 GB of BIOS in the archive, or a save the user believes is covered and is not. This is the failure that would make EmuBackup worse than nothing. Mitigated by the CI registry gates, `OVER_CAP` refusing rather than truncating, per-target byte counts under Advanced → Every save folder, and the size of every backup on the Backups list making a blowout visible.
 4. **Google OAuth "Testing" status revoking refresh tokens every 7 days.** Mitigated by the bold setup step, the `invalid_grant` error mapping, and the three-failure escalation.
 5. **`profiles.dat` semantics are unverified.** Mitigated by reading UUIDs from path components rather than the binary, and making aliases user-editable.
 6. **Removable SD cards are out of scope for v1 by decision.** A removable card cannot be written via `java.io.File` on Android 13 at all; it needs a third SAF-backed `FileSink` with different semantics. The `{EXT}` path indirection exists from day one so adding it later is additive, not a rewrite. Document the limitation in the README.

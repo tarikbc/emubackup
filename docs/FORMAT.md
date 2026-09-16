@@ -52,8 +52,11 @@ per target.
 ## §4 Deletions
 
 Files present in the basis but absent now are recorded in the manifest's `deleted` array.
-They are **not** represented in the zip. A hand restore therefore leaves stale files behind;
-the app's own restore removes them. `RESTORE.txt` states this in one sentence.
+They are **not** represented in the zip. Neither a hand restore nor the app's own restore
+removes them: `RestorePlanner` lists files that exist only on the device as
+`ORPHAN_ON_DEVICE` and never deletes anything, because a restore that deletes is a restore
+that can destroy the very save someone is trying to get back. `RESTORE.txt` says the same:
+extracting by hand leaves them in place; remove them yourself for an exact match.
 
 ## §5 Timestamps
 

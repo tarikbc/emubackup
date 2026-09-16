@@ -15,20 +15,16 @@
     <string name="shizuku_why">Android 11 removed access to Android/data for normal apps. All-files access does not cover it and the folder picker cannot target it. Shizuku, activated over adb, is the only route on a device without root.\n\nThis is where every GameCube, Wii, PlayStation, legacy Citra and Vita save lives, along with Eden\'s profiles.dat.</string>
     <string name="shizuku_pending">Not set up yet. Everything in shared storage still works without it.</string>
 
-    <string name="legend">saves · states · keys · skipped</string>
 
     <string name="back_up_now">Back up now</string>
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
     <string name="backup_running">Backing up</string>
-    <string name="versions_title">Backups</string>
-    <string name="no_versions">No backups yet here. Run one from the home screen.</string>
     <string name="restore_title">Restore</string>
     <string name="restore_action">Restore these files</string>
     <string name="restoring">Restoring</string>
     <string name="verify_action">Check it is intact</string>
     <string name="export_action">Export as one zip</string>
-    <string name="schedule_title">Automatic backups</string>
     <string name="destination_title">Where backups go</string>
     <string name="drive_title">Google Drive</string>
 </resources>

@@ -78,8 +78,6 @@
             android:parentActivityName=".RestorePreviewActivity" />
         <activity android:name=".VerifyActivity" android:exported="false"
             android:parentActivityName=".RestorePreviewActivity" />
-        <activity android:name=".ScheduleActivity" android:exported="false"
-            android:parentActivityName=".ShellActivity" />
         <activity android:name=".OnboardingActivity" android:exported="false"
             android:parentActivityName=".ShellActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
@@ -90,11 +88,9 @@
         <activity android:name=".DriveSetupActivity" android:exported="false"
             android:parentActivityName=".DriveLinkActivity" />
 
-        <activity android:name=".VersionsActivity" android:exported="false"
-            android:parentActivityName=".ShellActivity" />
 
         <activity android:name=".RestorePreviewActivity" android:exported="false"
-            android:parentActivityName=".VersionsActivity" />
+            android:parentActivityName=".ShellActivity" />
 
         <activity android:name=".TargetsActivity" android:exported="false"
             android:parentActivityName=".ShellActivity" />
