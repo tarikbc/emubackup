@@ -2,6 +2,7 @@ package com.tarikbc.emubackup;
 
 import android.app.NotificationManager;
 import android.content.Context;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,11 +33,29 @@ final class HomeModel {
     final java.util.Set<String> selected;
     /** Eden profile usernames by save-folder name, when profiles.dat could be read. */
     final Map<String, String> profileNames;
+    /** Save folders the newest backup could not read in full, set-aside ones included. */
+    final List<Problem> problems;
+
+    /** One folder the backup could not read in full. */
+    static final class Problem {
+        final String targetId, label, emulator, pkg;
+        final int files;
+        final boolean setAside;
+
+        Problem(String targetId, String label, String emulator, String pkg, int files, boolean setAside) {
+            this.targetId = targetId;
+            this.label = label;
+            this.emulator = emulator;
+            this.pkg = pkg;
+            this.files = files;
+            this.setAside = setAside;
+        }
+    }
 
     private HomeModel(Safety.Report report, Safety.Input input, ScanSession scan,
                       String storeError, Map<String, GameHistory.Entry> games, String folderLabel,
                       List<IndexEntry> index, GameNames names, java.util.Set<String> selected,
-                      Map<String, String> profileNames) {
+                      Map<String, String> profileNames, List<Problem> problems) {
         this.report = report;
         this.input = input;
         this.scan = scan;
@@ -47,6 +66,7 @@ final class HomeModel {
         this.names = names;
         this.selected = selected;
         this.profileNames = profileNames;
+        this.problems = problems;
     }
 
     static HomeModel load(Context ctx) {
@@ -86,7 +106,6 @@ final class HomeModel {
         for (RunLog.Run r : log.runs()) {
             if (r.ok && !"restore".equals(r.kind)) {
                 in.lastBackupMs = r.atMs;
-                in.lastRunProblems = r.detail == null || r.detail.isEmpty() ? null : r.detail;
                 break;
             }
         }
@@ -95,6 +114,7 @@ final class HomeModel {
         in.storeUnreachable = !vs.reachable();
         Map<String, GameHistory.Entry> games = new HashMap<>();
         java.util.Set<String> troubled = new java.util.HashSet<>();
+        List<Problem> problems = new ArrayList<>();
         if (vs.reachable()) {
             for (IndexEntry e : vs.list) {
                 if (!e.isPreRestore()) in.lastBackupMs = Math.max(in.lastBackupMs, e.createdAtMs);
@@ -102,7 +122,8 @@ final class HomeModel {
             if (s.ok()) {
                 Map<String, Manifest> manifests = manifests(ctx, vs.list);
                 games = GameHistory.build(s.registry, vs.list, manifests, s.scans);
-                troubled = troubledTargets(vs.list, manifests);
+                problems = problems(ctx, s.registry, vs.list, manifests);
+                for (Problem pr : problems) troubled.add(pr.targetId);
             }
         } else if (s.ok()) {
             games = GameHistory.build(s.registry, java.util.Collections.emptyList(),
@@ -139,6 +160,15 @@ final class HomeModel {
             }
         }
         in.gamesLocked = locked;
+        StringBuilder lines = new StringBuilder();
+        for (Problem pr : problems) {
+            if (pr.setAside) continue;
+            in.unreadableFolders++;
+            if (lines.length() > 0) lines.append('\n');
+            lines.append(pr.label).append(" (").append(pr.emulator).append("): ")
+                    .append(pr.files).append(pr.files == 1 ? " file" : " files");
+        }
+        in.lastRunProblems = lines.length() == 0 ? null : lines.toString();
 
         GameNames names = GameNames.empty();
         if (in.storageAccess) {
@@ -151,7 +181,7 @@ final class HomeModel {
         }
         return new HomeModel(Safety.assess(in), in, s, vs.error, games,
                 in.where == Safety.Where.FOLDER ? Destination.folderLabel(ctx) : null,
-                vs.list, names, selected, edenProfiles(s));
+                vs.list, names, selected, edenProfiles(s), problems);
     }
 
     /**
@@ -222,19 +252,34 @@ final class HomeModel {
         return manifests;
     }
 
-    /** Targets the newest backup could not read in full, by that backup's own account. */
-    private static java.util.Set<String> troubledTargets(List<IndexEntry> index,
-                                                         Map<String, Manifest> manifests) {
-        java.util.Set<String> out = new java.util.HashSet<>();
+    /** Save folders the newest backup could not read in full, by that backup's own account. */
+    private static List<Problem> problems(Context ctx, TargetRegistry reg, List<IndexEntry> index,
+                                          Map<String, Manifest> manifests) {
+        List<Problem> out = new ArrayList<>();
         IndexEntry newest = null;
         for (IndexEntry e : index) {
             if (e.isPreRestore() || !manifests.containsKey(e.id)) continue;
             if (newest == null || e.createdAtMs > newest.createdAtMs) newest = e;
         }
         if (newest == null) return out;
+        java.util.Set<String> aside = Prefs.setAside(ctx);
         for (ManifestTarget t : manifests.get(newest.id).targets) {
             boolean ok = t.status == TargetStatus.OK || t.status == TargetStatus.EMPTY;
-            if (!ok || t.detail != null) out.add(t.id);
+            if (ok && t.detail == null) continue;
+            if (!reg.hasTarget(t.id)) continue;
+            Target target = reg.target(t.id);
+            Emulator em = reg.emulatorOf(t.id);
+            int files = 0;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+) file\\(?s?\\)? could not be read")
+                    .matcher(t.detail == null ? "" : t.detail);
+            if (m.find()) files = Integer.parseInt(m.group(1));
+            // Only files the backup could not read count here. A folder with another status
+            // (locked, over its cap) has its own place in Safety.
+            if (files == 0) continue;
+            String emu = em.label;
+            int cut = emu.indexOf(" (");
+            if (cut > 0) emu = emu.substring(0, cut);
+            out.add(new Problem(t.id, target.label, emu, target.pkg, files, aside.contains(t.id)));
         }
         return out;
     }

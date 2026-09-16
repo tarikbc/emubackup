@@ -20,6 +20,7 @@ public final class Prefs {
     private static final String K_STATES = "include_states";
     private static final String K_KEYS = "include_keys";
     private static final String K_LOG = "run_log";
+    private static final String K_SET_ASIDE = "set_aside";
 
     private Prefs() {}
 
@@ -69,6 +70,17 @@ public final class Prefs {
         RunLog updated = log(ctx).with(run);
         prefs(ctx).edit().putString(K_LOG, updated.toJson()).commit();
         return updated;
+    }
+
+    /** Save folders the person chose to stop hearing about, by target id. */
+    public static java.util.Set<String> setAside(Context ctx) {
+        return new java.util.HashSet<>(prefs(ctx).getStringSet(K_SET_ASIDE, java.util.Collections.emptySet()));
+    }
+
+    public static void setAside(Context ctx, String targetId, boolean aside) {
+        java.util.Set<String> s = setAside(ctx);
+        if (aside) s.add(targetId); else s.remove(targetId);
+        prefs(ctx).edit().putStringSet(K_SET_ASIDE, s).commit();
     }
 
     public static void clearLog(Context ctx) {

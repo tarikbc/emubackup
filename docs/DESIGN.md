@@ -256,6 +256,13 @@ Every screen and every list defines these, and a person can tell them apart at a
 Home has four and the rail shows which: **Safe**, **Needs you** (amber), **Problem** (red),
 **Not set up** (grey). Priority is fixed in `Safety`: the worst wins, one at a time.
 
+**A state the person cannot fix is not a state to nag about forever.** A save folder whose
+app keeps files to itself (DuckStation's memory card, Amethyst's world data) is named on
+Home with the fix where one exists ("See what to do" opens a sheet with an Open-the-app
+button) and, where none exists, a **Set aside** choice: Home stops raising it, the Games row
+still says "partly backed up · set aside", and Settings → What to include lists it with
+"Include again". The truth stays on screen; the alarm does not.
+
 Interaction states on every focusable thing: **focused** (3 dp accent ring, `surface_high`
 fill), **pressed** (`accent_deep`), **selected** (accent text), **disabled** (40% alpha
 and a reason nearby). A missing grant never silently no-ops a tap: the control is either

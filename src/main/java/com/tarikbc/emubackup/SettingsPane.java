@@ -371,6 +371,19 @@ final class SettingsPane extends Pane {
                 "Emulator keys" + size(Category.KEY), s.includeKeys, (Runnable) () -> set(s.withKeys(!s.includeKeys)));
         para(col, "Save states are large, tied to one emulator build, and recreated by playing. "
                 + "Keys are not save data and are not always yours to copy.");
+        java.util.List<HomeModel.Problem> aside = new java.util.ArrayList<>();
+        for (HomeModel.Problem pr : model.problems) if (pr.setAside) aside.add(pr);
+        if (!aside.isEmpty()) {
+            caption(col, "Set aside");
+            para(col, "Folders with files only their app can read, which you chose to stop hearing "
+                    + "about. They are still backed up as far as they can be.");
+            for (HomeModel.Problem pr : aside) {
+                button(col, "Include " + pr.label + " (" + pr.emulator + ") again", false, () -> {
+                    Prefs.setAside(host, pr.targetId, false);
+                    host.reload();
+                });
+            }
+        }
     }
 
     private String size(Category c) {

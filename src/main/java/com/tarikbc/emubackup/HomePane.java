@@ -187,6 +187,80 @@ final class HomePane extends Pane {
         return action != null && action.getVisibility() == View.VISIBLE ? action : null;
     }
 
+    /** One entry per folder the backup could not read in full: the fix, or the honest why-not. */
+    void showRemedies() {
+        if (model == null) return;
+        ShellActivity c = host;
+        LinearLayout col = new LinearLayout(c);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.addView(Ui.text(c, "Extra access runs as Android's shell user, which reads what most "
+                + "emulators write but not files an app keeps to itself.", 14, R.color.text_secondary));
+        java.util.List<java.util.List<TextView>> rows = new java.util.ArrayList<>();
+        for (HomeModel.Problem pr : model.problems) {
+            Remedies.Remedy r = Remedies.forTarget(pr.targetId, pr.emulator);
+            LinearLayout entry = new LinearLayout(c);
+            entry.setOrientation(LinearLayout.VERTICAL);
+            entry.setBackground(Ui.card(c, R.color.surface_high));
+            int p = Ui.dp(c, 14);
+            entry.setPadding(p, p, p, p);
+            entry.addView(Ui.bold(c, pr.label + " \u00b7 " + pr.emulator + " \u00b7 " + pr.files
+                    + (pr.files == 1 ? " file" : " files") + (pr.setAside ? " \u00b7 set aside" : ""),
+                    15, R.color.text_primary));
+            entry.addView(Ui.text(c, r.text, 14, R.color.text_secondary), top(c, 6));
+            LinearLayout row = new LinearLayout(c);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            java.util.List<TextView> buttons = new java.util.ArrayList<>();
+            if (r.fixable()) {
+                TextView open = Ui.primaryButton(c, r.openLabel);
+                open.setMinWidth(0);
+                open.setMinHeight(Ui.dp(c, 44));
+                open.setOnClickListener(v -> host.openApp(pr.pkg));
+                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                blp.rightMargin = Ui.dp(c, 10);
+                row.addView(open, blp);
+                buttons.add(open);
+            }
+            TextView aside = Ui.secondaryButton(c, pr.setAside ? "Include again" : "Set aside");
+            aside.setMinWidth(0);
+            aside.setMinHeight(Ui.dp(c, 44));
+            aside.setOnClickListener(v -> {
+                Prefs.setAside(host, pr.targetId, !pr.setAside);
+                dismissSheet();
+                host.reload();
+            });
+            row.addView(aside);
+            buttons.add(aside);
+            rows.add(buttons);
+            entry.addView(row, top(c, 12));
+            col.addView(entry, top(c, 12));
+        }
+        SheetView sheet = showCustomSheet("What to do", col, null, "Close", null);
+        // An explicit order for the ring: up and down between rows, left and right within
+        // one, Close at the end. Nothing else in the sheet can take it.
+        TextView close = sheet.primaryButton();
+        for (TextView b : flatten(rows)) b.setId(View.generateViewId());
+        for (int i = 0; i < rows.size(); i++) {
+            java.util.List<TextView> row = rows.get(i);
+            View above = i == 0 ? null : rows.get(i - 1).get(0);
+            View below = i + 1 < rows.size() ? rows.get(i + 1).get(0) : close;
+            for (int j = 0; j < row.size(); j++) {
+                TextView b = row.get(j);
+                b.setNextFocusUpId(above == null ? b.getId() : above.getId());
+                b.setNextFocusDownId(below.getId());
+                b.setNextFocusLeftId(row.get(Math.max(0, j - 1)).getId());
+                b.setNextFocusRightId(row.get(Math.min(row.size() - 1, j + 1)).getId());
+            }
+        }
+        if (!rows.isEmpty()) close.setNextFocusUpId(rows.get(rows.size() - 1).get(0).getId());
+    }
+
+    private static java.util.List<TextView> flatten(java.util.List<java.util.List<TextView>> rows) {
+        java.util.List<TextView> all = new java.util.ArrayList<>();
+        for (java.util.List<TextView> r : rows) all.addAll(r);
+        return all;
+    }
+
     @Override void help() {
         if (model == null) return;
         String body;

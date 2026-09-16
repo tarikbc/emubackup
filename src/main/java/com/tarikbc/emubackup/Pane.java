@@ -90,6 +90,14 @@ abstract class Pane {
         sheet = SheetView.showInput(over, title, body, initial, secondary, primary, onPrimary);
     }
 
+    protected final SheetView showCustomSheet(String title, View content, String secondary, String primary,
+                                              Runnable onPrimary) {
+        ViewGroup over = host.paneHost();
+        if (sheet != null) sheet.dismiss();
+        sheet = SheetView.showCustom(over, title, content, secondary, primary, onPrimary);
+        return sheet;
+    }
+
     protected final void dismissSheet() {
         if (sheet != null) sheet.dismiss();
         sheet = null;

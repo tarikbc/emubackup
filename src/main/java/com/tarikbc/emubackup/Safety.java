@@ -17,7 +17,7 @@ public final class Safety {
 
     public enum Action {
         START, BACK_UP_NOW, GRANT_STORAGE, SET_UP_EXTRA_ACCESS, CHOOSE_DESTINATION,
-        ALLOW_NOTIFICATIONS, RECONNECT_DRIVE, SEE_WHAT_HAPPENED
+        ALLOW_NOTIFICATIONS, RECONNECT_DRIVE, SEE_WHAT_HAPPENED, SEE_WHAT_TO_DO
     }
 
     public enum Where { DRIVE, FOLDER, DEVICE }
@@ -35,7 +35,9 @@ public final class Safety {
         public int consecutiveScheduledFailures;
         public boolean lastRunFailed;
         public String lastFailureReason;
-        /** The last successful backup's problems, as recorded, or null when it had none. */
+        /** Save folders the last backup could not read in full, not counting those set aside. */
+        public int unreadableFolders;
+        /** Those folders named, one line each, for the detail under the headline. */
         public String lastRunProblems;
         public long lastBackupMs;
         public int gamesTotal;
@@ -119,13 +121,16 @@ public final class Safety {
                     reason(in.lastFailureReason),
                     Action.SEE_WHAT_HAPPENED, "See what happened");
         }
-        if (in.lastRunProblems != null && !in.lastRunProblems.isEmpty()) {
+        if (in.unreadableFolders > 0) {
             // Files the backup could not read are files that are not backed up, however green
-            // everything else looks. Typically an emulator wrote them with no group access,
-            // which Shizuku's shell user cannot get past.
-            return new Report(State.ATTENTION, "The last backup could not read everything.",
-                    in.lastRunProblems,
-                    Action.SEE_WHAT_HAPPENED, "See what happened");
+            // everything else looks. An emulator wrote them with no group access, which
+            // Shizuku's shell user cannot get past. What to do differs per app.
+            return new Report(State.ATTENTION, in.unreadableFolders == 1
+                    ? "1 save folder has files only its app can read."
+                    : in.unreadableFolders + " save folders have files only their apps can read.",
+                    (in.lastRunProblems == null ? "" : in.lastRunProblems + "\n")
+                            + "Everything else is backed up.",
+                    Action.SEE_WHAT_TO_DO, "See what to do");
         }
         if (in.gamesLocked > 0) {
             return new Report(State.ATTENTION, in.gamesLocked == 1

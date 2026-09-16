@@ -187,8 +187,10 @@ final class GamesPane extends Pane {
                 status = "changed since last backup";
                 hue = R.color.warn;
             } else if (e.changedSinceBackup) {
-                status = "partly backed up";
-                hue = R.color.warn;
+                boolean aside = false;
+                for (HomeModel.Problem pr : m.problems) if (pr.targetId.equals(e.targetId) && pr.setAside) aside = true;
+                status = aside ? "partly backed up \u00b7 set aside" : "partly backed up";
+                hue = aside ? R.color.text_tertiary : R.color.warn;
             } else {
                 status = "backed up " + Ago.format(e.lastBackedUpMs, now);
                 hue = R.color.text_secondary;

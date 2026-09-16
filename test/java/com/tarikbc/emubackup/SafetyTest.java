@@ -112,12 +112,16 @@ class SafetyTest {
         assertEquals("3 games changed since the last backup.", Safety.assess(in).headline);
 
         in.gamesStale = 0;
-        in.lastRunProblems = "Worlds: 20 file(s) could not be read and are not in this backup";
+        in.unreadableFolders = 2;
+        in.lastRunProblems = "Memory cards (DuckStation): 1 file\nWorlds (Amethyst): 20 files";
         Safety.Report problems = Safety.assess(in);
-        assertEquals("The last backup could not read everything.", problems.headline);
-        assertEquals(in.lastRunProblems, problems.detail);
-        assertEquals(Safety.Action.SEE_WHAT_HAPPENED, problems.action);
+        assertEquals("2 save folders have files only their apps can read.", problems.headline);
+        assertTrue(problems.detail.startsWith(in.lastRunProblems), problems.detail);
+        assertEquals(Safety.Action.SEE_WHAT_TO_DO, problems.action);
+        in.unreadableFolders = 1;
+        assertEquals("1 save folder has files only its app can read.", Safety.assess(in).headline);
 
+        in.unreadableFolders = 0;
         in.lastRunProblems = null;
         assertEquals("2 save folders need extra access.", Safety.assess(in).headline);
 

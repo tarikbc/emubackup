@@ -317,6 +317,12 @@ public class ShellActivity extends GamepadActivity {
         startActivity(new Intent(this, activity));
     }
 
+    /** Opens another app by package, or does nothing when it is not installed. */
+    void openApp(String pkg) {
+        Intent i = pkg == null ? null : getPackageManager().getLaunchIntentForPackage(pkg);
+        if (i != null) startActivity(i);
+    }
+
     void perform(Safety.Action a) {
         switch (a) {
             case START: open(OnboardingActivity.class); break;
@@ -330,6 +336,7 @@ public class ShellActivity extends GamepadActivity {
                 ((SettingsPane) panes[Dest.SETTINGS.ordinal()]).open(SettingsPane.Section.ADVANCED);
                 break;
             case ALLOW_NOTIFICATIONS: askForNotifications(); break;
+            case SEE_WHAT_TO_DO: ((HomePane) panes[Dest.HOME.ordinal()]).showRemedies(); break;
         }
     }
 

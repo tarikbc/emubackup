@@ -23,10 +23,73 @@ import android.widget.TextView;
 public final class SheetView extends FrameLayout {
 
     private final ViewGroup host;
+    private final java.util.Map<ViewGroup, Integer> blocked = new java.util.HashMap<>();
+    private TextView primaryButton, secondaryButton;
+
+    public TextView primaryButton() {
+        return primaryButton;
+    }
+
+    /** Null when the sheet has one button. */
+    public TextView secondaryButton() {
+        return secondaryButton;
+    }
 
     private SheetView(ViewGroup host) {
         super(host.getContext());
         this.host = host;
+    }
+
+    /**
+     * Nothing outside the sheet can take focus while it is up; restored on dismiss. Every
+     * sibling branch on the way up to the window is blocked, so the rail and the tab bar are
+     * fenced too, not only the pane the sheet sits in.
+     */
+    private void fenceHost() {
+        View v = this;
+        while (v.getParent() instanceof ViewGroup) {
+            ViewGroup parent = (ViewGroup) v.getParent();
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                View c = parent.getChildAt(i);
+                if (c == v || !(c instanceof ViewGroup)) continue;
+                ViewGroup g = (ViewGroup) c;
+                blocked.put(g, g.getDescendantFocusability());
+                g.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            }
+            v = parent;
+            if (parent.getId() == android.R.id.content) break;
+        }
+    }
+
+    /**
+     * A sheet with a view of the caller's own between the title and the buttons, for content
+     * that is more than a paragraph: a list of folders each with its own remedy, say.
+     */
+    public static SheetView showCustom(ViewGroup host, String title, View content,
+                                       String secondary, String primary, Runnable onPrimary) {
+        SheetView sheet = show(host, title, "", secondary, primary, onPrimary, null);
+        LinearLayout card = (LinearLayout) sheet.getChildAt(0);
+        card.removeViewAt(1);
+        // The content scrolls inside a card that fills the pane's height, so the buttons stay
+        // in reach however long the list is.
+        FrameLayout.LayoutParams clp = (FrameLayout.LayoutParams) card.getLayoutParams();
+        clp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+        clp.topMargin = clp.bottomMargin = Ui.dp(host.getContext(), 20);
+        card.setLayoutParams(clp);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        lp.topMargin = Ui.dp(host.getContext(), 12);
+        android.widget.ScrollView sv = new android.widget.ScrollView(host.getContext());
+        // The list scrolls to follow the ring; it never takes the ring itself.
+        sv.setFocusable(false);
+        sv.addView(content);
+        card.addView(sv, 1, lp);
+        // The bottom buttons were fenced to each other; open the fence upward into the content.
+        View go = ((ViewGroup) card.getChildAt(2)).getChildAt(((ViewGroup) card.getChildAt(2)).getChildCount() - 1);
+        go.setNextFocusUpId(View.NO_ID);
+        if (((ViewGroup) card.getChildAt(2)).getChildCount() > 1) {
+            ((ViewGroup) card.getChildAt(2)).getChildAt(0).setNextFocusUpId(View.NO_ID);
+        }
+        return sheet;
     }
 
     public static SheetView show(ViewGroup host, String title, String body,
@@ -99,8 +162,11 @@ public final class SheetView extends FrameLayout {
                 Math.min(Ui.dp(c, 520), host.getWidth() - Ui.dp(c, 48)),
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
         sheet.addView(card, lp);
+        sheet.primaryButton = go;
+        sheet.secondaryButton = cancel;
         host.addView(sheet, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        sheet.fenceHost();
         final View f = first;
         f.post(f::requestFocusFromTouch);
         return sheet;
@@ -191,6 +257,7 @@ public final class SheetView extends FrameLayout {
         sheet.addView(card, lp);
         host.addView(sheet, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        sheet.fenceHost();
         field.post(field::requestFocusFromTouch);
         return sheet;
     }
@@ -207,6 +274,10 @@ public final class SheetView extends FrameLayout {
     }
 
     public void dismiss() {
+        for (java.util.Map.Entry<ViewGroup, Integer> e : blocked.entrySet()) {
+            e.getKey().setDescendantFocusability(e.getValue());
+        }
+        blocked.clear();
         if (getParent() == host) host.removeView(this);
     }
 }
