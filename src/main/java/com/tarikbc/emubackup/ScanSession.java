@@ -22,18 +22,27 @@ public final class ScanSession {
     public final List<TargetScan> scans;
     public final String registryError;
 
+    /** Why app-private storage is or is not reachable. Never null. */
+    public final ShizukuGate.Status shizuku;
+
     private final Map<String, TargetScan> byTarget = new LinkedHashMap<>();
 
-    private ScanSession(TargetRegistry registry, Capabilities caps, List<TargetScan> scans, String registryError) {
+    private ScanSession(TargetRegistry registry, Capabilities caps, List<TargetScan> scans,
+                        String registryError, ShizukuGate.Status shizuku) {
         this.registry = registry;
         this.caps = caps;
         this.scans = scans;
         this.registryError = registryError;
+        this.shizuku = shizuku;
         for (TargetScan s : scans) byTarget.put(s.targetId, s);
     }
 
     public static ScanSession run(Context ctx) {
-        Capabilities caps = new Capabilities(Permissions.hasAllFiles(), false, OAuthConfig.isConfigured());
+        // Blocking, and deliberately attempted on every scan: Shizuku does not survive a reboot,
+        // so a cached "you are covered" would be exactly the stale reassurance to avoid.
+        ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
+        Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
+                OAuthConfig.isConfigured());
 
         TargetRegistry reg;
         try {
@@ -42,20 +51,20 @@ public final class ScanSession {
         } catch (Exception e) {
             // A registry that will not load means the app would scan nothing at all. That is
             // the one failure that must never present as "no saves found".
-            return new ScanSession(null, caps, new ArrayList<>(), describe(e));
+            return new ScanSession(null, caps, new ArrayList<>(), describe(e), shizuku);
         }
 
         PathResolver resolver = new PathResolver(Environment.getExternalStorageDirectory().getAbsolutePath());
         FileSource shared = new LocalFileSource();
-        // Tier B arrives with Shizuku in a later step; until then app-private targets report
-        // TIER_UNAVAILABLE, which is a skip and not an error.
-        ScanEngine engine = new ScanEngine(resolver, shared, null, caps, new AppInfo(ctx));
+        FileSource appPrivate = shizuku.ready()
+                ? new RemoteFileSource(ShizukuGate.service()) : null;
+        ScanEngine engine = new ScanEngine(resolver, shared, appPrivate, caps, new AppInfo(ctx));
 
         List<TargetScan> out = new ArrayList<>();
         for (Emulator e : reg.emulators()) {
             out.addAll(engine.scanAll(e, e.targets));
         }
-        return new ScanSession(reg, caps, out, null);
+        return new ScanSession(reg, caps, out, null, shizuku);
     }
 
     /**

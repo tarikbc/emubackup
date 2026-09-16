@@ -58,7 +58,8 @@ public final class RestoreSession {
     }
 
     public static RestoreSession load(Context ctx, String versionId) {
-        Capabilities caps = new Capabilities(Permissions.hasAllFiles(), false,
+        ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
+        Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                 OAuthConfig.isConfigured());
         try {
             LocalFolderSink s = sink();
@@ -76,10 +77,15 @@ public final class RestoreSession {
                 String label = reg.hasTarget(mt.id) ? reg.target(mt.id).label : mt.id;
                 boolean writable = caps.canRead(mt.tier);
 
+                // App-private roots are only reachable through the privileged service, so the
+                // preview must read them the same way the restore will write them.
+                final FileSource reader = mt.tier == Tier.SHARED ? src
+                        : (shizuku.ready() ? new RemoteFileSource(ShizukuGate.service()) : null);
+
                 List<FileStat> onDevice = new ArrayList<>();
-                if (writable && src.exists(mt.root)) {
+                if (writable && reader != null && reader.exists(mt.root)) {
                     try {
-                        onDevice = src.walk(mt.root, true);
+                        onDevice = reader.walk(mt.root, true);
                     } catch (Exception ignored) {
                         // Unreadable root. Treated as empty, which makes every file a CREATE and
                         // the preview will show that plainly rather than pretending to know more.
@@ -87,10 +93,10 @@ public final class RestoreSession {
                 }
                 final String root = mt.root;
                 plans.add(RestorePlanner.plan(mt, label, onDevice, null, rel -> {
-                    try (InputStream in = src.open(root, rel)) {
+                    try (InputStream in = reader.open(root, rel)) {
                         return Hashes.sha256(in);
                     }
-                }, writable));
+                }, writable && reader != null));
             }
             return new RestoreSession(m, plans, caps, null);
         } catch (Exception e) {

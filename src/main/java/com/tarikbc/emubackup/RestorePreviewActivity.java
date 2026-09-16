@@ -117,6 +117,31 @@ public class RestorePreviewActivity extends Activity {
     }
 
     private void confirmAndRun() {
+        int appPrivateFiles = 0;
+        for (RestorePlan p : plans) {
+            if (p.tier == Tier.APP_PRIVATE) appPrivateFiles += p.toWrite().size();
+        }
+        if (appPrivateFiles > 0) {
+            // Writing into another app's private directory is the riskiest thing this app does.
+            // Files created by the shell user have to stay readable by the emulator that owns the
+            // folder. That is expected to hold, but it is unproven on any given device, so it gets
+            // its own confirmation until a real round trip has been verified here.
+            new AlertDialog.Builder(this)
+                    .setTitle("Restore into app-private storage?")
+                    .setMessage(appPrivateFiles + " file(s) go into folders owned by the emulators "
+                            + "themselves, written through Shizuku.\n\nThis part is not yet proven "
+                            + "on this device. A copy of anything replaced is saved first, and the "
+                            + "emulator may need relaunching afterwards.\n\nShared-storage saves are "
+                            + "unaffected either way.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Continue", (d, w) -> confirmConflicts())
+                    .show();
+            return;
+        }
+        confirmConflicts();
+    }
+
+    private void confirmConflicts() {
         int forcedFiles = 0;
         for (RestorePlan p : plans) if (p.forced) forcedFiles += p.count(RestoreAction.CONFLICT_NEWER);
 

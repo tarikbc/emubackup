@@ -105,10 +105,12 @@ public class BackupService extends Service {
                     new PathResolver(Environment.getExternalStorageDirectory().getAbsolutePath());
             AppInfo apps = new AppInfo(this);
             FileSource shared = new LocalFileSource();
-            ScanEngine scanner = new ScanEngine(resolver, shared, null, session.caps, apps);
+            FileSource appPrivate = session.caps.appPrivate
+                    ? new RemoteFileSource(ShizukuGate.service()) : null;
+            ScanEngine scanner = new ScanEngine(resolver, shared, appPrivate, session.caps, apps);
 
-            BackupRunner runner = new BackupRunner(session.registry, scanner, resolver, shared, null,
-                    sink, session.caps, apps, apps)
+            BackupRunner runner = new BackupRunner(session.registry, scanner, resolver, shared,
+                    appPrivate, sink, session.caps, apps, apps)
                     .withDevice(appVersion(), android.os.Build.MODEL, android.os.Build.VERSION.SDK_INT);
 
             BackupRunner.Result r = runner.run(null, "manual", System.currentTimeMillis(),
@@ -153,11 +155,16 @@ public class BackupService extends Service {
             try (java.io.InputStream in = sink.openFile(request.versionId, "manifest.json")) {
                 m = Manifest.fromJson(BackupRunner.readAll(in));
             }
-            Capabilities caps = new Capabilities(Permissions.hasAllFiles(), false,
+            ShizukuGate.Status shizuku = ShizukuGate.connect(this);
+            Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                     OAuthConfig.isConfigured());
+            FileSource appPrivate = shizuku.ready()
+                    ? new RemoteFileSource(ShizukuGate.service()) : null;
+            FileSink appPrivateSink = shizuku.ready()
+                    ? new RemoteFileSink(ShizukuGate.service()) : null;
 
-            RestoreRunner runner = new RestoreRunner(sink, new LocalFileSource(), null,
-                    new LocalFileSink(), null, caps);
+            RestoreRunner runner = new RestoreRunner(sink, new LocalFileSource(), appPrivate,
+                    new LocalFileSink(), appPrivateSink, caps);
             RestoreRunner.Result r = runner.run(m, request.plans, System.currentTimeMillis(),
                     new RestoreRunner.Listener() {
                         @Override public void onProgress(Progress p) { publish(p); }

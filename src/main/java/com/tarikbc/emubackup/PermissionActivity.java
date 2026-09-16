@@ -1,8 +1,14 @@
 package com.tarikbc.emubackup;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -21,6 +27,8 @@ import android.widget.TextView;
 public class PermissionActivity extends Activity {
 
     private LinearLayout root;
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final Handler ui = new Handler(Looper.getMainLooper());
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -58,7 +66,78 @@ public class PermissionActivity extends Activity {
         LinearLayout s = addCard(R.color.text_tertiary, dp(12));
         s.addView(cardTitle(getString(R.string.shizuku_title)));
         s.addView(body(getString(R.string.shizuku_why)));
-        s.addView(body(getString(R.string.shizuku_pending)));
+        TextView status = body("Checking…");
+        s.addView(status);
+
+        // Connecting blocks, so it happens off the main thread and the card fills in when it
+        // resolves. Re-run on every resume because Shizuku dies on reboot and can be revoked.
+        io.execute(() -> {
+            final ShizukuGate.Status st = ShizukuGate.connect(this);
+            ui.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                showShizuku(s, status, st);
+            });
+        });
+    }
+
+    private void showShizuku(LinearLayout card, TextView status, ShizukuGate.Status st) {
+        switch (st.state) {
+            case READY:
+                status.setText("Ready, running as " + st.identity()
+                        + ". App-private saves are covered.");
+                status.setTextColor(color(R.color.ok));
+                return;
+            case NOT_INSTALLED:
+                status.setText("Shizuku is not installed. It is a separate free app that grants "
+                        + "this access without root.");
+                addAction(card, "Get Shizuku", () -> openUrl("https://shizuku.rikka.app/"));
+                return;
+            case NOT_RUNNING:
+                status.setText("Shizuku is installed but not running. Start it from the Shizuku "
+                        + "app. It has to be started again after every reboot.");
+                addAction(card, "Open Shizuku", this::openShizuku);
+                return;
+            case NEEDS_PERMISSION:
+                status.setText("Shizuku is running but has not granted access to EmuBackup yet.");
+                addAction(card, "Ask for access", ShizukuGate::requestPermission);
+                return;
+            case PROBE_FAILED:
+            default:
+                // Reported rather than retried silently. A privileged path that appears to work
+                // and reads nothing produces an empty backup that looks successful.
+                status.setText(st.detail == null ? "Shizuku could not be used on this device."
+                                                 : st.detail);
+                status.setTextColor(color(R.color.danger));
+                addAction(card, "Try again", this::recreate);
+        }
+    }
+
+    private void addAction(LinearLayout card, String label, Runnable onClick) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextColor(color(R.color.text_primary));
+        b.setBackgroundTintList(ColorStateList.valueOf(color(R.color.surface_high)));
+        b.setOnClickListener(v -> onClick.run());
+        card.addView(b, marginTop(dp(12)));
+    }
+
+    private void openShizuku() {
+        Intent i = getPackageManager().getLaunchIntentForPackage(ShizukuGate.SHIZUKU_PACKAGE);
+        if (i != null) startActivity(i);
+        else openUrl("https://shizuku.rikka.app/");
+    }
+
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception ignored) {
+            // No browser. Nothing useful to fall back to, and the card already explains the step.
+        }
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        io.shutdownNow();
     }
 
     /** Adds a card to the screen and returns the column to put its content in. */

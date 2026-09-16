@@ -244,6 +244,48 @@ Shizuku loads **our own service class into a `shell`-UID process**, so it uses p
     android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 ```
 
+## 2b. Why Shizuku and not an in-app ADB client
+
+An in-app ADB client was evaluated as a way to avoid asking the user to install a second app.
+It is viable and stays possible, but it was not chosen for v1.
+
+The privilege never comes from Shizuku itself. It comes from ADB: the process Shizuku exposes was
+started by an ADB command and therefore carries the `shell` identity. An app cannot grant itself
+that, by design. So "embedding Shizuku" is not a thing that exists. What *is* possible is speaking
+ADB ourselves over Android 11's Wireless Debugging, pairing with the device's own daemon on
+localhost.
+
+The only mature Java implementation is `libadb-android`, which is dual-licensed
+GPL-3.0-or-later OR Apache-2.0 — so the Apache option keeps this repo unencumbered. Its
+dependencies are the problem:
+
+| Library | License | Size |
+|---|---|---|
+| libadb-android | Apache-2.0 (dual) | small |
+| BouncyCastle `bcprov` | MIT-style | ~8 MB |
+| Conscrypt | Apache-2.0 | ~4 MB, native `.so` per ABI |
+| spake2-java | LGPL-3.0 | small |
+
+That takes a 2.3 MB APK to roughly 15 MB, because this build deliberately has no R8 and ships all
+of BouncyCastle whether it is used or not. It introduces the first native dependency into an
+otherwise pure-Java build, so `build.sh` would need to place `.so` files in `lib/<abi>/`. And both
+crypto components state plainly that they have never been security audited, while handling the
+pairing secret.
+
+The decisive point is that it does not even shorten the setup. Both routes need Developer Options,
+and both break on reboot:
+
+    Shizuku:     install app, then run one ADB command      (repeat after reboot)
+    In-app ADB:  enable Wireless Debugging, read the code,
+                 type it in                                  (repeat after reboot, new port)
+
+So it trades one app install for a pairing dance. Shizuku costs four resource-free AARs totalling
+about 60 KB and no build changes.
+
+This stays cheap to revisit. Tier B sits behind `FileSource` and `FileSink`; an ADB-backed
+implementation would be a third pair beside the local and Shizuku ones, and nothing above that
+seam would change.
+
 ## 3. Capability model — Shizuku stays optional
 
 ```java

@@ -42,8 +42,14 @@ tenth of a percent. Small, scattered, and irreplaceable.
 
 ## Status
 
-Early. The build pipeline, registry format and documentation are in place; scanning and
-backup are being implemented. Not yet usable.
+Working for shared-storage saves, and verified on a real device: backup, hand-restore with
+nothing but `unzip`, in-app restore with a dry-run preview, and per-game breakdown.
+
+App-private saves (Dolphin, DuckStation, legacy Citra, Vita3K, aPS3e, GTA SA, and Eden's
+`profiles.dat`) are wired up through Shizuku but not yet verified on hardware. Restoring
+*into* app-private storage carries an extra confirmation until it has been.
+
+Still to come: Google Drive, scheduled backups, and retention.
 
 ## Design
 

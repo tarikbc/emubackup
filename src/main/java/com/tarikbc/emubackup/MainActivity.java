@@ -113,7 +113,12 @@ public class MainActivity extends Activity {
     private String describe(ScanSession s) {
         StringBuilder b = new StringBuilder();
         b.append("all-files   ").append(s.caps.allFiles ? "granted" : "NOT granted").append('\n');
-        b.append("shizuku     ").append(s.caps.appPrivate ? "ready" : "not set up").append('\n');
+        b.append("shizuku     ").append(s.caps.appPrivate
+                ? "ready (" + s.shizuku.identity() + ", server v" + s.shizuku.serverVersion + ")"
+                : s.shizuku.state.name().toLowerCase(java.util.Locale.ROOT)).append('\n');
+        if (!s.caps.appPrivate && s.shizuku.detail != null) {
+            b.append("            ").append(s.shizuku.detail).append('\n');
+        }
         b.append("drive       ").append(s.caps.drive ? "configured" : "local only").append('\n');
         if (s.registry != null) {
             b.append("registry    v").append(s.registry.registryVersion())
