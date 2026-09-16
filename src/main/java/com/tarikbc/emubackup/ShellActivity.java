@@ -233,10 +233,16 @@ public class ShellActivity extends GamepadActivity {
         p.refresh();
         legendFor(p);
         if (focusPane) {
-            // A pane that returns null has arranged its own focus (a list that must lay out
-            // first). Focusing the host instead would hand focus to its first descendant.
+            // Requested now, before the next frame: with the old pane gone and nothing focused,
+            // the framework would park focus on the first focusable view, the Home row, and
+            // its ring would flash until a posted request moved it. A pane that returns null
+            // has arranged its own focus (a list that must lay out first) and hands over its
+            // list so the parking spot is a view that draws no ring.
             View f = p.defaultFocus();
-            if (f != null) focusByDefault(f);
+            if (f != null) {
+                f.requestFocus();
+                focusByDefault(f);
+            }
         }
     }
 
@@ -266,6 +272,8 @@ public class ShellActivity extends GamepadActivity {
                 // where a thumb should be resting.
                 View f = getCurrentFocus();
                 boolean parked = f == null || f == placeRows[Dest.HOME.ordinal()];
+                android.util.Log.d("EmuShell", "model loaded; focus=" + f + " parked=" + parked
+                        + " pad=" + GamepadActivity.gamepadPresent());
                 if (current == Dest.HOME && parked && GamepadActivity.gamepadPresent()) {
                     focusByDefault(pane().defaultFocus());
                 }

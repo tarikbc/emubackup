@@ -113,6 +113,7 @@ final class GamesPane extends Pane {
         list = new RecyclerView(c);
         list.setLayoutManager(new LinearLayoutManager(c));
         list.setItemAnimator(null);
+        list.setFocusedByDefault(true);
         list.setClipToPadding(false);
         list.setPadding(0, Ui.dp(c, 12), 0, gy);
         col.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -456,6 +457,7 @@ final class GamesPane extends Pane {
         LinearLayout buttons = new LinearLayout(c);
         buttons.setOrientation(tall ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         backupButton = Ui.primaryButton(c, "Back up now");
+        backupButton.setFocusedByDefault(true);
         backupButton.setOnClickListener(v -> host.open(BackupActivity.class));
         buttons.addView(backupButton, buttonLp(tall, false));
         if (e.group.profileKey != null) {
@@ -684,9 +686,14 @@ final class GamesPane extends Pane {
     @Override View defaultFocus() {
         view();
         if (open != null) return backupButton;
+        if (list != null) {
+            RecyclerView.ViewHolder h = list.findViewHolderForAdapterPosition(0);
+            if (h != null) return h.itemView;
+        }
         if (!shown.isEmpty()) {
             focusRow(0);
-            return null;
+            // The RecyclerView holds focus without a ring until its first row exists.
+            return list;
         }
         return chipBar != null && chipBar.getChildCount() > 0 ? chipBar.getChildAt(0) : null;
     }

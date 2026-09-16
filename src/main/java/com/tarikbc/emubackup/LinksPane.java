@@ -62,7 +62,10 @@ class LinksPane extends Pane {
             row.addView(Ui.text(c, l.label, 17, R.color.text_primary));
             if (l.hint != null) row.addView(Ui.text(c, l.hint, 14, R.color.text_secondary));
             root.addView(row, margin(c, 10, 0));
-            if (first == null) first = row;
+            if (first == null) {
+                first = row;
+                row.setFocusedByDefault(true);
+            }
         }
         return sv;
     }

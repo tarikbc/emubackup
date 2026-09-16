@@ -31,6 +31,10 @@ final class HomePane extends Pane {
         LinearLayout left = new LinearLayout(c);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setGravity(Gravity.CENTER_VERTICAL);
+        // The help button's ring extends into the gutter so its text lines up with the
+        // headline; the column must not clip it.
+        left.setClipChildren(false);
+        left.setClipToPadding(false);
         stateWord = Ui.bold(c, "", 14, R.color.text_secondary);
         left.addView(stateWord);
         headline = Ui.bold(c, "Checking your saves\u2026", tall ? 26 : 30, R.color.text_primary);
@@ -39,6 +43,9 @@ final class HomePane extends Pane {
         left.addView(detail, top(c, 10));
         action = Ui.primaryButton(c, "");
         action.setVisibility(View.INVISIBLE);
+        // What the framework focuses on the first D-pad press, even if the window had no
+        // focus while the model loaded (a posted requestFocus fails in touch mode).
+        action.setFocusedByDefault(true);
         action.setOnClickListener(v -> {
             if (model != null) host.perform(model.report.action);
         });
@@ -71,6 +78,9 @@ final class HomePane extends Pane {
             LinearLayout col = new LinearLayout(c);
             col.setOrientation(LinearLayout.VERTICAL);
             col.setPadding(Ui.dp(c, 20), Ui.dp(c, 24), Ui.dp(c, 20), Ui.dp(c, 24));
+            col.setClipChildren(false);
+            col.setClipToPadding(false);
+            sv.setClipChildren(false);
             col.addView(left, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             col.addView(card, top(c, 24));
@@ -81,6 +91,8 @@ final class HomePane extends Pane {
         LinearLayout root = new LinearLayout(c);
         root.setOrientation(LinearLayout.HORIZONTAL);
         root.setPadding(Ui.dp(c, 32), Ui.dp(c, 24), Ui.dp(c, 32), Ui.dp(c, 24));
+        root.setClipChildren(false);
+        root.setClipToPadding(false);
         root.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 3f));
         LinearLayout right = new LinearLayout(c);
         right.setOrientation(LinearLayout.VERTICAL);
