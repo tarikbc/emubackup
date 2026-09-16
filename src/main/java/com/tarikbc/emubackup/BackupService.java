@@ -98,8 +98,7 @@ public class BackupService extends Service {
             if (!session.ok()) throw new IllegalStateException(session.registryError);
             if (!session.caps.allFiles) throw new IllegalStateException("all-files access not granted");
 
-            File dir = new File(Environment.getExternalStorageDirectory(), "EmuBackup");
-            LocalFolderSink sink = new LocalFolderSink(dir.getAbsolutePath());
+            BackupSink sink = chooseSink();
 
             PathResolver resolver =
                     new PathResolver(Environment.getExternalStorageDirectory().getAbsolutePath());
@@ -124,7 +123,7 @@ public class BackupService extends Service {
                 publish(Progress.of(Progress.Phase.CANCELLED, summary));
             } else {
                 summary = r.versionId + " · " + Sizes.human(r.archivedBytes) + " written to "
-                        + sink.rootPath();
+                        + sink.describe();
                 if (!r.problems.isEmpty()) summary += "\n" + r.problems.size() + " problem(s)";
                 publish(Progress.of(Progress.Phase.DONE, summary));
             }
@@ -200,6 +199,28 @@ public class BackupService extends Service {
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
+    }
+
+    /**
+     * Google Drive when it is linked, a local folder otherwise.
+     *
+     * <p>The local folder is never merely a fallback: it is the guarantee that a backup outlives
+     * this app and any account, and it is what the whole test suite exercises.
+     */
+    private BackupSink chooseSink() throws java.io.IOException {
+        DriveTokens tokens = new DriveTokens(this);
+        if (tokens.linked()) {
+            File staging = new File(getExternalFilesDir(null), "staging");
+            return new DriveSink(new DriveApi(tokens), staging, new DriveApi.ProgressListener() {
+                @Override public void onProgress(long sent, long total) {
+                    publish(new Progress(Progress.Phase.ARCHIVING, null, "Uploading", 0, 0,
+                            null, 0, 0, sent, total, null));
+                }
+                @Override public boolean isCancelled() { return cancelRequested; }
+            });
+        }
+        return new LocalFolderSink(
+                new File(Environment.getExternalStorageDirectory(), "EmuBackup").getAbsolutePath());
     }
 
     private void publish(Progress p) {

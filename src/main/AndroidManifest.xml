@@ -66,6 +66,9 @@
         <activity android:name=".GroupsActivity" android:exported="false"
             android:parentActivityName=".TargetsActivity" />
 
+        <activity android:name=".DriveLinkActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <activity android:name=".VersionsActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
 

@@ -46,6 +46,8 @@ public class MainActivity extends Activity {
                 v -> startActivity(new Intent(this, TargetsActivity.class)));
         ((Button) findViewById(R.id.btn_versions)).setOnClickListener(
                 v -> startActivity(new Intent(this, VersionsActivity.class)));
+        ((Button) findViewById(R.id.btn_drive)).setOnClickListener(
+                v -> startActivity(new Intent(this, DriveLinkActivity.class)));
         ((Button) findViewById(R.id.btn_permissions)).setOnClickListener(
                 v -> startActivity(new Intent(this, PermissionActivity.class)));
     }
@@ -110,6 +112,11 @@ public class MainActivity extends Activity {
         statusHue.setBackgroundColor(getResources().getColor(colorRes, null));
     }
 
+    private String driveState() {
+        if (!OAuthConfig.isConfigured()) return "no client in this build, local folder";
+        return new DriveTokens(this).linked() ? "linked" : "not linked, local folder";
+    }
+
     private String describe(ScanSession s) {
         StringBuilder b = new StringBuilder();
         b.append("all-files   ").append(s.caps.allFiles ? "granted" : "NOT granted").append('\n');
@@ -119,7 +126,7 @@ public class MainActivity extends Activity {
         if (!s.caps.appPrivate && s.shizuku.detail != null) {
             b.append("            ").append(s.shizuku.detail).append('\n');
         }
-        b.append("drive       ").append(s.caps.drive ? "configured" : "local only").append('\n');
+        b.append("drive       ").append(driveState()).append('\n');
         if (s.registry != null) {
             b.append("registry    v").append(s.registry.registryVersion())
                     .append(", ").append(s.registry.emulators().size()).append(" emulators, ")

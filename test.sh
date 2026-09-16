@@ -57,6 +57,11 @@ $SRC/SaveGroup.java
 $SRC/GroupBuilder.java
 $SRC/RomFilenameParser.java
 $SRC/GameNames.java
+$SRC/UploadDecision.java
+$SRC/DriveApi.java
+$SRC/DeviceCodeAuth.java
+$SRC/TokenEnvelope.java
+$SRC/DriveSink.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,
