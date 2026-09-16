@@ -94,6 +94,41 @@ Without one the app uses a local folder and is fully functional. Release APKs ca
 credentials, by a rule in the workflow rather than by convention, because a published APK
 cannot keep an OAuth secret and one shared client would put every user on one project.
 
+## First run
+
+A new install opens a short walkthrough rather than the hub: it explains what the app does,
+asks for the one permission it needs, and then shows what it found in **your** saves before
+asking for anything else. Destination comes next, Shizuku after that and only when something
+is actually locked, and it never blocks. It can be left at any point, and reopened from the
+Permissions screen.
+
+On the device this was built for it reads:
+
+    282 MB of saves
+    27 save sets, across 14 emulators.
+
+     143 MB  Eden (Nintendo Switch)
+      79 MB  Amethyst (Minecraft, Java)
+      41 MB  NetherSX2 / ArmsX2 (PlayStation 2)
+      12 MB  Azahar (Nintendo 3DS)
+       7 MB  PPSSPP (PSP)
+    and 9 more
+
+## Where backups go
+
+Three destinations, and you can change between them at any time without losing anything:
+
+- **Google Drive.** Survives losing the device. Needs your own OAuth client, pasted into the
+  app, about ten minutes once. See [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md).
+- **A folder you pick.** An SD card, a USB drive, or a folder owned by a sync app such as
+  Dropbox or Nextcloud, in which case the backup leaves the device with no account involved.
+  No setup beyond picking it.
+- **This device.** A folder in internal storage. It survives an emulator wiping its own data,
+  which is the common way saves are lost, and nothing else.
+
+All three write the identical tree, so a version written to one restores exactly like a
+version written to another.
+
 ## Two things to know
 
 **All-files access.** EmuBackup requests `MANAGE_EXTERNAL_STORAGE` because emulator save

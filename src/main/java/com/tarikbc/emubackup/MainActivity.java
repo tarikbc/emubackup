@@ -34,6 +34,12 @@ public class MainActivity extends Activity {
         super.onCreate(saved);
         setContentView(R.layout.activity_main);
 
+        // The hub stays the launcher and the walkthrough opens on top of it, so leaving the
+        // walkthrough at any point lands here rather than on a blank task.
+        if (!Onboarding.isComplete(this)) {
+            startActivity(new Intent(this, OnboardingActivity.class));
+        }
+
         headline = findViewById(R.id.headline);
         subline = findViewById(R.id.subline);
         detail = findViewById(R.id.detail);

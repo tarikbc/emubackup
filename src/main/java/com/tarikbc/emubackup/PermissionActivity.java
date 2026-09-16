@@ -69,6 +69,15 @@ public class PermissionActivity extends Activity {
         TextView status = body("Checking…");
         s.addView(status);
 
+        LinearLayout again = addCard(R.color.text_tertiary, dp(12));
+        again.addView(cardTitle("First-run walkthrough"));
+        again.addView(body("The guided setup that runs on a new install. Nothing is reset by "
+                + "opening it, and it can be left at any point."));
+        addAction(again, "Show it again", () -> {
+            Onboarding.reset(this);
+            startActivity(new Intent(this, OnboardingActivity.class));
+        });
+
         // Connecting blocks, so it happens off the main thread and the card fills in when it
         // resolves. Re-run on every resume because Shizuku dies on reboot and can be revoked.
         io.execute(() -> {
