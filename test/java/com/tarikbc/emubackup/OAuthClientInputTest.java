@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
  */
 class OAuthClientInputTest {
 
+    // Shaped like the real thing and belonging to nobody. A test fixture that is also a live
+    // credential is a credential published to everyone who clones the repository.
     private static final String ID = "000000000000-0000000000000000000000000000000a"
             + ".apps.googleusercontent.com";
     private static final String SECRET = "GOCSPX-000000000000000000000000000";
