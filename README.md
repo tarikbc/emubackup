@@ -11,6 +11,13 @@ including the ones Android hides from apps.
 
 </div>
 
+<div align="center">
+<img src="docs/screenshots/01-what-it-found.png" width="49%" alt="282 MB of saves across 14 emulators, broken down by emulator">
+<img src="docs/screenshots/03-destinations.png" width="49%" alt="Three destinations: Google Drive, a folder you pick, this device">
+<img src="docs/screenshots/05-schedule.png" width="49%" alt="Automatic backups: frequency, conditions, retention and history">
+<img src="docs/screenshots/04-verify.png" width="49%" alt="This backup is sound: 18 archives checked, 125 MB read">
+</div>
+
 ## Why
 
 An emulator update destroyed my Switch profiles. The saves themselves survived only by
@@ -78,7 +85,15 @@ of the ~80 classes have zero `android.*` imports — including the backup and re
 engines — so the logic that can lose your data is tested end to end on a JVM with no
 emulator. `test.sh` enforces that property rather than trusting it.
 
-## Build and run
+## Install
+
+Download the APK from [Releases](https://github.com/tarikbc/emubackup/releases) and sideload it.
+Android will warn about installing from an unknown source; that is expected for an app that
+cannot be on the Play Store, for the reason in **Two things to know** below.
+
+    adb install -r emubackup.apk
+
+## Build it yourself
 
     git clone https://github.com/tarikbc/emubackup && cd emubackup
     ./vendor-libs.sh
