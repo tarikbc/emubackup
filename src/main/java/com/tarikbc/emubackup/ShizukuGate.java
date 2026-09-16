@@ -26,7 +26,7 @@ public final class ShizukuGate {
     public static final int PERMISSION_REQUEST = 4001;
 
     /** Bumped when the privileged interface changes, so Shizuku restarts a stale service. */
-    private static final int SERVICE_VERSION = 1;
+    private static final int SERVICE_VERSION = 2;
 
     private static final long BIND_TIMEOUT_MS = 10_000;
 

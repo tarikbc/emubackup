@@ -108,7 +108,8 @@ public class RestorePreviewActivity extends Activity {
             blocked += p.count(RestoreAction.BLOCKED_TIER);
         }
         StringBuilder b = new StringBuilder();
-        b.append(versionId).append("  ·  ").append(write).append(" files to write (")
+        b.append(versionId).append("  ·  ").append(write)
+                .append(write == 1 ? " file to write (" : " files to write (")
                 .append(Sizes.human(bytes)).append(')');
         if (conflicts > 0) b.append("  ·  ").append(conflicts).append(" newer on device, skipped");
         if (blocked > 0) b.append("  ·  ").append(blocked).append(" need Shizuku");
@@ -122,17 +123,17 @@ public class RestorePreviewActivity extends Activity {
             if (p.tier == Tier.APP_PRIVATE) appPrivateFiles += p.toWrite().size();
         }
         if (appPrivateFiles > 0) {
-            // Writing into another app's private directory is the riskiest thing this app does.
-            // Files created by the shell user have to stay readable by the emulator that owns the
-            // folder. That is expected to hold, but it is unproven on any given device, so it gets
-            // its own confirmation until a real round trip has been verified here.
+            // Writing into another app's private directory is still the most invasive thing this
+            // app does, so it keeps its own confirmation. The mechanism is now verified rather
+            // than assumed: files land owned by shell, and the emulator reaches them through the
+            // ext_data_rw group that every app carries for its own external data. Checked on a
+            // real device against Dolphin, whose process holds gid 1078.
             new AlertDialog.Builder(this)
                     .setTitle("Restore into app-private storage?")
                     .setMessage(appPrivateFiles + " file(s) go into folders owned by the emulators "
-                            + "themselves, written through Shizuku.\n\nThis part is not yet proven "
-                            + "on this device. A copy of anything replaced is saved first, and the "
-                            + "emulator may need relaunching afterwards.\n\nShared-storage saves are "
-                            + "unaffected either way.")
+                            + "themselves, written through Shizuku.\n\nA copy of anything replaced "
+                            + "is saved first. The emulator may need relaunching to notice the "
+                            + "change.\n\nShared-storage saves are unaffected either way.")
                     .setNegativeButton("Cancel", null)
                     .setPositiveButton("Continue", (d, w) -> confirmConflicts())
                     .show();

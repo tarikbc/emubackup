@@ -135,6 +135,15 @@ public final class PrivilegedFileService extends IPrivilegedFiles.Stub {
         }
     }
 
+    @Override public boolean setMode(String path, int mode) {
+        try {
+            android.system.Os.chmod(path, mode);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override public void destroy() {
         // Shizuku calls this when unbinding. Ending the process releases the privilege promptly
         // rather than leaving a shell-UID process idling for the lifetime of the device.

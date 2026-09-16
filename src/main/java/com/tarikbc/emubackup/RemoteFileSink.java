@@ -53,12 +53,19 @@ public final class RemoteFileSink implements FileSink {
         }
     }
 
+    /** Matches what the emulators themselves write: owner and group read/write, no execute. */
+    private static final int SAVE_FILE_MODE = 0660;
+
     @Override public void commit(String root, String relPath) throws IOException {
         String dst = PathResolver.join(root, relPath);
         try {
             if (!remote.renameTo(dst + TEMP_SUFFIX, dst)) {
                 throw new IOException("could not commit " + dst);
             }
+            // Cosmetic but worth getting right. A file created through the service lands 0770,
+            // where the emulator's own saves are 0660; leaving execute bits on a memory card
+            // image is the kind of difference that invites a future surprise.
+            remote.setMode(dst, SAVE_FILE_MODE);
         } catch (RemoteException e) {
             throw new IOException("privileged commit failed for " + dst, e);
         }

@@ -115,6 +115,30 @@ a run. What it did expose was a real defect — a single unreadable file used to
 entire backup, discarding archives already written because no manifest was ever produced.
 See the `unreadableFileIsSkippedNotFatal` test.
 
+## Restoring into app-private storage, verified (2026-09-16)
+
+Writing into another app's directory was the last unproven part of the design, and the
+question was ownership: files created through the privileged service belong to `shell`, not
+to the app that owns the folder.
+
+It works, and the reason is the group rather than the owner. Dolphin's own process reports:
+
+    Uid:    10132
+    Groups: 1015 1078 1079 3003 9997 20132 50132      (1078 = ext_data_rw)
+
+Every app carries `ext_data_rw` for its own external data, and files under `Android/data`
+are group-owned by it. So a file written by `shell` with group read/write is fully
+accessible to the owning emulator.
+
+Round trip on real data: a GameCube save was deleted, restored through the app, and came
+back byte-identical with its original modification time intact. The restored file now also
+matches its siblings' permissions exactly:
+
+    -rw-rw---- u0_a132 ext_data_rw  78-GQPE-SpongeBob00.gci    (written by Dolphin)
+    -rw-rw---- shell   ext_data_rw  7D-GHQE-Save1.gci          (written by the restore)
+
+The owner cannot be changed without root and does not need to be.
+
 ## Verified footprint
 
     real save / state / memcard data     ~730 MB

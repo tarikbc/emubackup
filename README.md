@@ -45,9 +45,14 @@ tenth of a percent. Small, scattered, and irreplaceable.
 Working for shared-storage saves, and verified on a real device: backup, hand-restore with
 nothing but `unzip`, in-app restore with a dry-run preview, and per-game breakdown.
 
-App-private saves (Dolphin, DuckStation, legacy Citra, Vita3K, aPS3e, GTA SA, and Eden's
-`profiles.dat`) are wired up through Shizuku but not yet verified on hardware. Restoring
-*into* app-private storage carries an extra confirmation until it has been.
+App-private saves work too, through Shizuku, and are verified on hardware: backup, restore,
+and permissions matching what the emulator itself writes. Restoring *into* app-private
+storage still asks for confirmation, because it is the most invasive thing the app does.
+
+One real limitation: apps that write their saves mode `600` cannot be read even with
+Shizuku, because it provides the `shell` identity rather than root. DuckStation does this.
+Those files are listed in each backup's manifest and reported after a run, never skipped
+silently.
 
 Still to come: Google Drive, scheduled backups, and retention.
 

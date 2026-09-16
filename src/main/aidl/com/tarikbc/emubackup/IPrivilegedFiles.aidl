@@ -39,6 +39,13 @@ interface IPrivilegedFiles {
     /** Hex SHA-256, computed in-process so the bytes never cross the binder. */
     String sha256(String path) = 10;
 
+    /**
+     * Sets the permission bits, so a restored file matches the ones the owning app writes.
+     * Files created through this service belong to shell, and access works because every app is
+     * in the ext_data_rw group for its own external data, but the mode should still match.
+     */
+    boolean setMode(String path, int mode) = 11;
+
     /** Called by Shizuku when the service is unbound. */
     void destroy() = 16777114;
 }
