@@ -133,8 +133,9 @@ public class BackupService extends Service {
                 versionId = r.versionId;
                 bytes = r.archivedBytes;
                 new ManifestCache(this).put(r.manifest);
-                summary = r.versionId + " · " + Sizes.human(r.archivedBytes) + " written to "
-                        + sink.describe();
+                summary = r.archivedBytes == 0
+                        ? "Nothing changed since the last backup. Everything is already in " + sink.describe() + "."
+                        : Sizes.human(r.archivedBytes) + " written to " + sink.describe();
                 // A bare count is useless: it tells you something is wrong and nothing about
                 // what, and the list is gone once this screen closes. Name the targets, but
                 // cap the list so a bad run cannot bury the version id under thirty lines.
@@ -197,10 +198,11 @@ public class BackupService extends Service {
                     });
 
             StringBuilder b = new StringBuilder();
-            b.append(r.cancelled ? "Cancelled after " : "Restored ")
-                    .append(r.filesWritten).append(" files (").append(Sizes.human(r.bytesWritten)).append(")");
+            b.append(r.cancelled ? "Cancelled after " : "Put back ")
+                    .append(r.filesWritten).append(r.filesWritten == 1 ? " file (" : " files (")
+                    .append(Sizes.human(r.bytesWritten)).append(")");
             if (r.snapshotVersionId != null) {
-                b.append("\nWhat was replaced is saved in ").append(r.snapshotVersionId);
+                b.append("\nWhat was replaced is kept as a safety copy, under Backups.");
                 new ManifestCache(this).put(r.snapshotManifest);
             }
             if (!r.corrupt.isEmpty()) b.append("\n").append(r.corrupt.size())

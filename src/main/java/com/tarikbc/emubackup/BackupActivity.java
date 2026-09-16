@@ -1,61 +1,62 @@
 package com.tarikbc.emubackup;
 
-import android.app.Activity;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.View;
-import android.widget.Button;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 
 /**
- * Live view of a running backup.
+ * Live view of a running backup or restore.
  *
- * <p>Owns no work. {@link BackupService} runs the backup and keeps running whether or not this
- * screen exists, which is what lets a long run survive the screen turning off or the Activity
- * being destroyed on rotation. This reads the latest snapshot on resume and receives pushes
- * while it is visible.
+ * <p>Owns no work. {@link BackupService} runs it and keeps running whether or not this screen
+ * exists, which is what lets a long run survive the screen turning off. This reads the latest
+ * snapshot on resume and receives pushes while it is visible. B leaves the screen; the run
+ * goes on and the result arrives as a notification.
  */
-public class BackupActivity extends Activity implements BackupService.Listener {
+public class BackupActivity extends GamepadActivity implements BackupService.Listener {
 
     /** Set when this screen is showing a restore rather than a backup. */
     public static final String EXTRA_RESTORE = "restore";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean restoreMode;
-
-    private TextView phase, target, file, summary;
-    private ProgressBar bar;
-    private Button action;
+    private RunView run;
     private boolean finished;
+    private Progress last;
+    private String finishText;
+    private boolean finishFailed;
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         restoreMode = getIntent().getBooleanExtra(EXTRA_RESTORE, false);
-        setContentView(R.layout.activity_backup);
-        phase = findViewById(R.id.phase);
-        target = findViewById(R.id.target);
-        file = findViewById(R.id.file);
-        summary = findViewById(R.id.summary);
-        bar = findViewById(R.id.bar);
-        action = findViewById(R.id.action);
-
-        action.setOnClickListener(v -> {
-            if (finished) {
-                finish();
-            } else {
-                BackupService.requestCancel();
-                action.setEnabled(false);
-                phase.setText("Cancelling…");
-            }
-        });
-
-        // A restore is started by the preview screen, which has already been approved. Only a
-        // plain backup is kicked off from here.
+        build();
+        // A restore is started by the sheet or preview that approved it. Only a plain backup
+        // is kicked off from here.
         if (!restoreMode && !BackupService.RUNNING && BackupService.PROGRESS == null) {
             BackupService.start(this);
         }
+    }
+
+    private void build() {
+        boolean tall = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+        run = new RunView(this, restoreMode ? "Putting back" : "Backing up",
+                restoreMode ? "A safety copy of anything replaced is made first."
+                        : "Only what changed since the last backup is sent.", tall);
+        run.onButton("Stop", () -> {
+            BackupService.requestCancel();
+            run.waiting("Stopping\u2026");
+        });
+        setContentView(run);
+        setLegend("A", "Select", "B", "Hide");
+        focusByDefault(run.button());
+        if (finished) run.finish(!finishFailed, finishText != null && finishText.startsWith("Cancelled"),
+                headline(finishFailed, finishText), finishText, this::finish);
+        else if (last != null) render(last);
+    }
+
+    @Override public void onConfigurationChanged(Configuration cfg) {
+        super.onConfigurationChanged(cfg);
+        build();
     }
 
     @Override protected void onResume() {
@@ -67,62 +68,59 @@ public class BackupActivity extends Activity implements BackupService.Listener {
 
     @Override protected void onPause() {
         super.onPause();
-        // Cleared so the service never holds a reference to a screen that is gone.
         if (BackupService.LISTENER == this) BackupService.LISTENER = null;
     }
 
     @Override public void onProgress(Progress p) {
-        postIfAlive(() -> render(p));
+        ui.post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            render(p);
+        });
     }
 
     @Override public void onFinished(String text, boolean failed) {
-        postIfAlive(() -> {
+        ui.post(() -> {
+            if (isFinishing() || isDestroyed()) return;
             finished = true;
-            summary.setVisibility(View.VISIBLE);
-            summary.setText(text);
-            summary.setTextColor(getResources().getColor(
-                    failed ? R.color.danger : R.color.ok, null));
-            action.setText(R.string.close);
-            action.setEnabled(true);
-            bar.setIndeterminate(false);
-            bar.setProgress(failed ? 0 : 100);
+            finishText = text;
+            finishFailed = failed;
+            boolean stopped = text != null && text.startsWith("Cancelled");
+            run.finish(!failed && !stopped, stopped, headline(failed, text), text, this::finish);
+            setLegend("A", "Close", "B", "Close");
         });
     }
 
-    private void postIfAlive(Runnable r) {
-        ui.post(() -> {
-            if (isFinishing() || isDestroyed()) return;
-            r.run();
-        });
+    private String headline(boolean failed, String text) {
+        boolean stopped = text != null && text.startsWith("Cancelled");
+        if (restoreMode) return failed ? "Could not put it back" : stopped ? "Stopped" : "Put back";
+        return failed ? "Backup failed" : stopped ? "Stopped" : "Backed up";
     }
 
     private void render(Progress p) {
+        last = p;
+        if (finished) return;
         switch (p.phase) {
-            case SCANNING: phase.setText("Scanning"); break;
-            case DIFFING: phase.setText("Comparing"); break;
-            case ARCHIVING: phase.setText(restoreMode ? "Restoring" : "Archiving"); break;
-            case WRITING_MANIFEST: phase.setText("Writing manifest"); break;
-            case DONE: phase.setText("Finished"); break;
-            case CANCELLED: phase.setText("Cancelled"); break;
-            case FAILED: phase.setText("Failed"); break;
+            case SCANNING: run.phase("Looking at your saves"); break;
+            case DIFFING: run.phase("Comparing with the last backup"); break;
+            case ARCHIVING: run.phase(restoreMode ? "Putting back" : "Sending what changed"); break;
+            case WRITING_MANIFEST: run.phase("Almost done"); break;
+            case DONE: run.phase("Finished"); break;
+            case CANCELLED: run.phase("Stopped"); break;
+            case FAILED: run.phase("Failed"); break;
         }
-
         if (p.targetLabel != null) {
-            String t = p.targetLabel;
-            if (p.targetCount > 0) t += "  (" + p.targetIndex + " of " + p.targetCount + ")";
-            target.setText(t);
+            run.item(p.targetCount > 0 ? p.targetLabel + " (" + p.targetIndex + " of " + p.targetCount + ")"
+                    : p.targetLabel);
+        } else if (p.phase == Progress.Phase.WRITING_MANIFEST) {
+            run.item("Recording what was backed up");
         } else if (p.message != null) {
-            target.setText(p.message);
+            run.item(p.message);
         }
-
-        file.setText(p.fileName == null ? "" : p.fileName);
-
+        run.detail(p.fileName);
         int pc = p.percent();
-        if (pc < 0) {
-            bar.setIndeterminate(true);
-        } else {
-            bar.setIndeterminate(false);
-            bar.setProgress(pc);
-        }
+        String countText = null;
+        if (p.filesTotal > 0) countText = p.filesDone + " of " + p.filesTotal + " files";
+        else if (p.bytesTotal > 0) countText = Sizes.human(p.bytesDone) + " of " + Sizes.human(p.bytesTotal);
+        run.progress(pc < 0 ? -1 : pc, 100, countText);
     }
 }
