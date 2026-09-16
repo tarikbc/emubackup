@@ -81,7 +81,8 @@
         <activity android:name=".ScheduleActivity" android:exported="false"
             android:parentActivityName=".ShellActivity" />
         <activity android:name=".OnboardingActivity" android:exported="false"
-            android:parentActivityName=".ShellActivity" />
+            android:parentActivityName=".ShellActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
         <activity android:name=".DestinationActivity" android:exported="false"
             android:parentActivityName=".ShellActivity" />
         <activity android:name=".DriveLinkActivity" android:exported="false"
