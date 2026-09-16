@@ -48,8 +48,9 @@
         android:supportsRtl="true">
 
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".ShellActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -57,7 +58,7 @@
         </activity>
 
         <activity android:name=".BackupActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
 
         <service android:name=".BackupService"
             android:exported="false"
@@ -77,27 +78,30 @@
         <activity android:name=".VerifyActivity" android:exported="false"
             android:parentActivityName=".RestorePreviewActivity" />
         <activity android:name=".ScheduleActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
         <activity android:name=".OnboardingActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
         <activity android:name=".DestinationActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
         <activity android:name=".DriveLinkActivity" android:exported="false"
             android:parentActivityName=".DestinationActivity" />
         <activity android:name=".DriveSetupActivity" android:exported="false"
             android:parentActivityName=".DriveLinkActivity" />
 
         <activity android:name=".VersionsActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
 
         <activity android:name=".RestorePreviewActivity" android:exported="false"
             android:parentActivityName=".VersionsActivity" />
 
         <activity android:name=".TargetsActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
 
         <activity android:name=".PermissionActivity" android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ShellActivity" />
+
+        <activity android:name=".StatusActivity" android:exported="false"
+            android:parentActivityName=".ShellActivity" />
 
         <!-- Shizuku's binder bridge. The authority is written out literally
              because aapt2 link has no manifest-placeholder substitution.

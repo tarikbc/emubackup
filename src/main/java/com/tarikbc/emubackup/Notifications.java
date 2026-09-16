@@ -54,7 +54,7 @@ public final class Notifications {
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
-                .setContentIntent(open(ctx, MainActivity.class))
+                .setContentIntent(open(ctx, ShellActivity.class))
                 .build());
     }
 

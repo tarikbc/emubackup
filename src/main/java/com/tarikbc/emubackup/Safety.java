@@ -35,10 +35,13 @@ public final class Safety {
         public int consecutiveScheduledFailures;
         public boolean lastRunFailed;
         public String lastFailureReason;
+        /** The last successful backup's problems, as recorded, or null when it had none. */
+        public String lastRunProblems;
         public long lastBackupMs;
         public int gamesTotal;
         /** Games whose saves changed, and stayed unbacked-up, long enough to matter. */
         public int gamesStale;
+        /** Save folders the app cannot see into. Their games are unknown, so folders are counted. */
         public int gamesLocked;
         public boolean scheduled;
         public String scheduleDescription;
@@ -116,10 +119,19 @@ public final class Safety {
                     reason(in.lastFailureReason),
                     Action.SEE_WHAT_HAPPENED, "See what happened");
         }
+        if (in.lastRunProblems != null && !in.lastRunProblems.isEmpty()) {
+            // Files the backup could not read are files that are not backed up, however green
+            // everything else looks. Typically an emulator wrote them with no group access,
+            // which Shizuku's shell user cannot get past.
+            return new Report(State.ATTENTION, "The last backup could not read everything.",
+                    in.lastRunProblems,
+                    Action.SEE_WHAT_HAPPENED, "See what happened");
+        }
         if (in.gamesLocked > 0) {
-            return new Report(State.ATTENTION, games(in.gamesLocked) + " need extra access.",
-                    "Their saves are in folders only the emulator can see. Everything else is "
-                            + "backed up.",
+            return new Report(State.ATTENTION, in.gamesLocked == 1
+                    ? "1 save folder needs extra access."
+                    : in.gamesLocked + " save folders need extra access.",
+                    "Only the emulator can see inside. Everything else is backed up.",
                     Action.SET_UP_EXTRA_ACCESS, "Set up extra access");
         }
         if (in.where == Where.DEVICE) {

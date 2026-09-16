@@ -1,0 +1,166 @@
+package com.tarikbc.emubackup;
+
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+/**
+ * The answer. One headline, one action, four facts.
+ *
+ * <p>Status on the left, where the eye lands first; facts and the button on the right. Every
+ * state has exactly one thing to press, and it is the fix, not a menu that contains the fix.
+ */
+final class HomePane extends Pane {
+
+    private TextView stateWord, headline, detail, action, help;
+    private TextView lastBackup, where, next, games;
+    private HomeModel model;
+
+    HomePane(ShellActivity host) {
+        super(host);
+    }
+
+    @Override protected View create() {
+        ShellActivity c = host;
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setPadding(Ui.dp(c, 32), Ui.dp(c, 24), Ui.dp(c, 32), Ui.dp(c, 24));
+
+        LinearLayout left = new LinearLayout(c);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setGravity(Gravity.CENTER_VERTICAL);
+        stateWord = Ui.bold(c, "", 14, R.color.text_secondary);
+        left.addView(stateWord);
+        headline = Ui.bold(c, "Checking your saves\u2026", 30, R.color.text_primary);
+        left.addView(headline, top(c, 8));
+        detail = Ui.text(c, "", 16, R.color.text_secondary);
+        left.addView(detail, top(c, 10));
+        action = Ui.primaryButton(c, "");
+        action.setVisibility(View.INVISIBLE);
+        action.setOnClickListener(v -> {
+            if (model != null) host.perform(model.report.action);
+        });
+        LinearLayout.LayoutParams alp = top(c, 24);
+        alp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        left.addView(action, alp);
+        help = Ui.text(c, "What does this mean?", 14, R.color.text_secondary);
+        help.setBackgroundResource(R.drawable.rail_row);
+        help.setPadding(Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 12), Ui.dp(c, 8));
+        help.setFocusable(true);
+        help.setClickable(true);
+        help.setOnClickListener(v -> help());
+        LinearLayout.LayoutParams hlp = top(c, 8);
+        hlp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        hlp.leftMargin = -Ui.dp(c, 12);
+        left.addView(help, hlp);
+        root.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 3f));
+
+        LinearLayout right = new LinearLayout(c);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(Ui.card(c, R.color.surface));
+        int p = Ui.dp(c, 20);
+        card.setPadding(p, p, p, p);
+        lastBackup = fact(card, "Last backup");
+        where = fact(card, "Kept in");
+        next = fact(card, "Next backup");
+        games = fact(card, "Games found");
+        right.addView(card, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 2f);
+        rlp.leftMargin = Ui.dp(c, 28);
+        root.addView(right, rlp);
+        return root;
+    }
+
+    private TextView fact(LinearLayout card, String label) {
+        LinearLayout.LayoutParams lp = top(host, card.getChildCount() == 0 ? 0 : 14);
+        card.addView(Ui.caption(host, label), lp);
+        TextView v = Ui.text(host, "\u2026", 17, R.color.text_primary);
+        card.addView(v, top(host, 2));
+        return v;
+    }
+
+    private static LinearLayout.LayoutParams top(android.content.Context c, int dp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = Ui.dp(c, dp);
+        return lp;
+    }
+
+    void render(HomeModel m) {
+        this.model = m;
+        view();
+        Safety.Report r = m.report;
+        int hue = ShellActivity.hueOf(r.state);
+        stateWord.setText(ShellActivity.wordOf(r.state));
+        stateWord.setTextColor(Ui.color(host, hue));
+        headline.setText(r.headline);
+        detail.setText(r.detail);
+        action.setText(r.actionLabel);
+        action.setVisibility(View.VISIBLE);
+
+        long now = m.input.nowMs;
+        lastBackup.setText(m.input.lastBackupMs == 0 ? "Never"
+                : capitalise(Ago.format(m.input.lastBackupMs, now)));
+        where.setText(capitalise(m.whereName())
+                + (m.input.destinationUnavailable ? " (for now)" : ""));
+        next.setText(m.input.scheduled ? capitalise(m.input.scheduleDescription)
+                : "Only when you press the button");
+        StringBuilder g = new StringBuilder();
+        if (m.scan == null || !m.scan.ok()) {
+            g.append("Could not look");
+        } else {
+            g.append(m.input.gamesTotal);
+            if (m.input.gamesStale > 0) g.append(", ").append(m.input.gamesStale).append(" changed");
+            if (m.input.gamesLocked > 0) {
+                g.append("; ").append(m.input.gamesLocked)
+                        .append(m.input.gamesLocked == 1 ? " folder" : " folders").append(" locked");
+            }
+        }
+        games.setText(g);
+    }
+
+    private static String capitalise(String s) {
+        return s == null || s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    @Override String[] legend() {
+        return new String[] { "A", "Select", "B", "Back", "Y", "What is this?" };
+    }
+
+    @Override View defaultFocus() {
+        return action != null && action.getVisibility() == View.VISIBLE ? action : null;
+    }
+
+    @Override void help() {
+        if (model == null) return;
+        String body;
+        switch (model.report.state) {
+            case SAFE:
+                body = "EmuBackup found your saves and the newest copy of each is stored in "
+                        + model.whereName() + ". Nothing has changed since then, or it changed "
+                        + "very recently. Backing up again is always safe: only what changed "
+                        + "is sent.";
+                break;
+            case ATTENTION:
+                body = "Your saves are backed up, but one thing needs you. The button does "
+                        + "that one thing. Nothing has been lost.";
+                break;
+            case PROBLEM:
+                body = "Backups are not happening the way they were set up to. Until this is "
+                        + "fixed, new progress exists only on this device. The button starts "
+                        + "the fix.";
+                break;
+            default:
+                body = "EmuBackup keeps a copy of your emulator saves somewhere safe, so a "
+                        + "broken device or a bad update does not take your progress with it. "
+                        + "The walkthrough takes about a minute.";
+        }
+        showSheet(model.report.headline, body, null, "OK", null);
+    }
+}

@@ -299,11 +299,11 @@ final class Capabilities {
 
 `ScanEngine` and `BackupRunner` take `Capabilities` and emit `TIER_UNAVAILABLE` for Tier B when `!shell` — never an error, never a failed run. Three UI affordances and no more:
 
-1. `MainActivity` header: "12 of 19 save sets covered. 7 need Shizuku."
+1. `ShellActivity` Home: "12 of 19 save sets covered. 7 need Shizuku."
 2. `TargetsActivity`: Tier B rows at 40% alpha with a lock glyph, **still showing the declared path and install state** so the user sees what they are missing. This is the upsell.
 3. `PermissionActivity`: two stacked cards, with the explicit sentence that Android 11 removed `Android/data` access, `MANAGE_EXTERNAL_STORAGE` does not cover it, SAF cannot target it, and this is where every GameCube, Wii, PS1 and legacy-Citra save lives plus Eden's `profiles.dat`.
 
-**Staleness rule, because Shizuku dies on reboot:** `MainActivity` shows "App-private saves: last captured 6 days ago", amber past 3 days, red past 7. A scheduled run that finds Shizuku down completes Tier A and reports Tier B as skipped. That failure must never be silent.
+**Staleness rule, because Shizuku dies on reboot:** Home shows "App-private saves: last captured 6 days ago", amber past 3 days, red past 7. A scheduled run that finds Shizuku down completes Tier A and reports Tier B as skipped. That failure must never be silent.
 
 ## 4. Backup format
 
@@ -461,7 +461,7 @@ Grouping is declared per target in the registry:
 ## 10. Screens
 
 ```
-MainActivity (hub)
+ShellActivity (rail + Home)
  ├─ PermissionActivity      all-files card + Shizuku card
  ├─ TargetsActivity         the registry by emulator; include toggles
  │    └─ GroupsActivity     per-game / per-profile, segmented "By game | By profile"
@@ -524,7 +524,7 @@ That turns "these classes are pure" from a comment into a CI-enforced invariant,
 
 ## 13. Sequencing
 
-1. `LICENSE`, `DESIGN.md`, `FORMAT.md`, `TARGETS.md`; scripts ported, empty `MainActivity` building.
+1. `LICENSE`, `DESIGN.md`, `FORMAT.md`, `TARGETS.md`; scripts ported, an empty launcher Activity building.
 2. Registry + path logic + `TargetRegistryTest` with the full inventory. **Highest value per hour — the moment the registry lands, every trap is locked down by CI.**
 3. Tier A source/sink, `ScanEngine`, `TargetsActivity`, `SizeBarView`. First real value: "here is every save on your device, with sizes."
 4. `DiffEngine`, `ArchiveWriter`, `Manifest`, `RestoreScript`, `LocalFolderSink`, `BackupRunner`, `BackupService`. Full local Tier A backup.

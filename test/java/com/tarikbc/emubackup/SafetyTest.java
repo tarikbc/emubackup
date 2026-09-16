@@ -112,7 +112,14 @@ class SafetyTest {
         assertEquals("3 games changed since the last backup.", Safety.assess(in).headline);
 
         in.gamesStale = 0;
-        assertEquals("2 games need extra access.", Safety.assess(in).headline);
+        in.lastRunProblems = "Worlds: 20 file(s) could not be read and are not in this backup";
+        Safety.Report problems = Safety.assess(in);
+        assertEquals("The last backup could not read everything.", problems.headline);
+        assertEquals(in.lastRunProblems, problems.detail);
+        assertEquals(Safety.Action.SEE_WHAT_HAPPENED, problems.action);
+
+        in.lastRunProblems = null;
+        assertEquals("2 save folders need extra access.", Safety.assess(in).headline);
 
         in.gamesLocked = 0;
         assertEquals("Backups stay on this device only.", Safety.assess(in).headline);
