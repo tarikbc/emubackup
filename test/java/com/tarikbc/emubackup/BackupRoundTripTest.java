@@ -184,6 +184,71 @@ class BackupRoundTripTest {
     }
 
     @Test
+    @DisplayName("one unreadable file does not destroy the whole backup")
+    void unreadableFileIsSkippedNotFatal(@TempDir Path tmp) throws Exception {
+        // Found on a real device: DuckStation writes its memory cards mode 600, which even the
+        // shell identity Shizuku provides cannot open. Before this, that single file aborted the
+        // entire run — six archives were written and then thrown away because no manifest was
+        // ever produced. Losing every other save over one unreadable file is far worse than a
+        // reported gap.
+        Path ext = tmp.resolve("device");
+        Path store = tmp.resolve("store");
+        LocalFolderSink sink = new LocalFolderSink(store.toString());
+        write(ext.resolve("saves/readable1.dat"), "fine");
+        write(ext.resolve("saves/locked.dat"), "cannot be opened");
+        write(ext.resolve("saves/readable2.dat"), "also fine");
+
+        final LocalFileSource real = new LocalFileSource();
+        FileSource stubborn = new FileSource() {
+            @Override public boolean available() { return real.available(); }
+            @Override public boolean exists(String root) { return real.exists(root); }
+            @Override public java.util.List<FileStat> walk(String root, boolean recursive)
+                    throws IOException {
+                return real.walk(root, recursive);
+            }
+            @Override public java.io.InputStream open(String root, String relPath) throws IOException {
+                // The file lists and stats fine; only opening it fails. That is exactly the
+                // shape of a mode-600 file under another app's directory.
+                if (relPath.equals("locked.dat")) throw new IOException("Permission denied");
+                return real.open(root, relPath);
+            }
+        };
+
+        TargetRegistry reg = TargetRegistry.parse(REGISTRY);
+        PathResolver res = new PathResolver(ext.toString());
+        Capabilities caps = new Capabilities(true, false, false);
+        BackupRunner.Result r = new BackupRunner(reg,
+                new ScanEngine(res, stubborn, null, caps, PackagePresence.ALL_PRESENT),
+                res, stubborn, null, sink, caps, EmulatorVersions.UNKNOWN, PackagePresence.ALL_PRESENT)
+                .run(null, "manual", 1_000L, BackupRunner.SILENT);
+
+        // The run completes and is a real, indexed backup.
+        assertFalse(r.cancelled);
+        assertTrue(Files.isRegularFile(store.resolve(r.versionId).resolve("manifest.json")),
+                "the run produced no manifest, so the whole backup was lost");
+        assertTrue(Files.isRegularFile(store.resolve("index.json")));
+
+        ManifestTarget t = r.manifest.target("saves");
+        java.util.Set<String> archived = new java.util.HashSet<>();
+        for (ManifestFile f : t.files) archived.add(f.path);
+        assertTrue(archived.contains("readable1.dat"));
+        assertTrue(archived.contains("readable2.dat"));
+        assertFalse(archived.contains("locked.dat"),
+                "an unreadable file must not be claimed as backed up");
+
+        // And the gap is reported rather than silent.
+        assertTrue(t.skipped.contains("locked.dat"), "skipped list was " + t.skipped);
+        assertFalse(r.problems.isEmpty(), "the user was not told anything was skipped");
+
+        // The archive still restores cleanly for everything it does contain.
+        Path rebuilt = tmp.resolve("rebuilt");
+        handRestore(store, r.versionId, "saves", rebuilt);
+        assertEquals("fine", new String(Files.readAllBytes(rebuilt.resolve("readable1.dat")),
+                StandardCharsets.UTF_8));
+        assertFalse(Files.exists(rebuilt.resolve("locked.dat")));
+    }
+
+    @Test
     @DisplayName("SHA256SUMS is in the exact format sha256sum -c accepts")
     void sha256sumsFormat(@TempDir Path tmp) throws Exception {
         Path ext = tmp.resolve("device");

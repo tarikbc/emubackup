@@ -22,7 +22,7 @@ class RestorePlannerTest {
         return new ManifestTarget("t", "emu", Tier.SHARED, Category.SAVE, "/root",
                 TargetStatus.OK, "full", null, "t.full.zip", "deadbeef", 100, 100, 0,
                 Arrays.asList("v0001/t.full.zip"), null, -1, Arrays.asList(files),
-                new ArrayList<>(), null);
+                new ArrayList<>(), new ArrayList<>(), null);
     }
 
     private static ManifestFile mf(String p, long size, long mtime, String hash) {

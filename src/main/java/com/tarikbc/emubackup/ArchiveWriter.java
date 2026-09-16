@@ -39,11 +39,16 @@ public final class ArchiveWriter {
         public final String sha256;
         public final boolean cancelled;
 
-        Result(int files, long archiveBytes, String sha256, boolean cancelled) {
+        /** Files that could be listed but not opened. Reported, never fatal. */
+        public final java.util.List<String> unreadable;
+
+        Result(int files, long archiveBytes, String sha256, boolean cancelled,
+               java.util.List<String> unreadable) {
             this.files = files;
             this.archiveBytes = archiveBytes;
             this.sha256 = sha256;
             this.cancelled = cancelled;
+            this.unreadable = unreadable;
         }
     }
 
@@ -68,6 +73,7 @@ public final class ArchiveWriter {
         int i = 0, total = plan.toArchive.size();
         boolean cancelled = false;
 
+        java.util.List<String> unreadable = new java.util.ArrayList<>();
         ZipOutputStream zip = new ZipOutputStream(digest);
         zip.setLevel(store ? Deflater.NO_COMPRESSION : Deflater.BEST_SPEED);
         try {
@@ -78,19 +84,35 @@ public final class ArchiveWriter {
                 }
                 listener.onFile(f.path, ++i, total, bytesDone, bytesTotal);
 
+                // Opened before the entry is created. A file that cannot be read must leave no
+                // trace in the archive, and an entry opened and then abandoned would.
+                InputStream in;
+                try {
+                    in = src.open(root, f.path);
+                } catch (IOException ex) {
+                    // Genuinely unreadable, not a bug: DuckStation writes its memory cards mode
+                    // 600, which even the shell identity cannot open. Losing every other save
+                    // over this one file would be far worse than an honest, reported gap.
+                    unreadable.add(f.path);
+                    i--;
+                    continue;
+                }
+
                 ZipEntry e = new ZipEntry(f.path);
                 // Best effort only. Zip timestamps are two-second granular with no timezone, so
                 // the manifest stays authoritative for mtime; this just makes a hand restore land
                 // in the right ballpark. See FORMAT.md section 5.
                 e.setLastModifiedTime(java.nio.file.attribute.FileTime.fromMillis(f.mtimeMs));
                 zip.putNextEntry(e);
-                try (InputStream in = src.open(root, f.path)) {
+                try {
                     byte[] buf = new byte[64 * 1024];
                     int n;
                     while ((n = in.read(buf)) != -1) {
                         zip.write(buf, 0, n);
                         bytesDone += n;
                     }
+                } finally {
+                    in.close();
                 }
                 zip.closeEntry();
             }
@@ -99,7 +121,7 @@ public final class ArchiveWriter {
             zip.flush();
         }
 
-        return new Result(i, counter.count, Hashes.hex(md.digest()), cancelled);
+        return new Result(i, counter.count, Hashes.hex(md.digest()), cancelled, unreadable);
     }
 
     /** Counts bytes actually written, which is the archive's size on disk. */

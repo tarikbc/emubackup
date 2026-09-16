@@ -209,7 +209,7 @@ public final class RestoreRunner {
             targets.add(new ManifestTarget(p.targetId, null, p.tier, Category.SAVE, root,
                     TargetStatus.OK, "full", null, archive, w.sha256, w.archiveBytes,
                     w.archiveBytes, 0, chain, null, -1, plan.files, new ArrayList<>(),
-                    "captured before restoring " + manifest.version));
+                    new ArrayList<>(), "captured before restoring " + manifest.version));
         }
 
         Manifest snap = new Manifest(vid, nowMs, manifest.appVersionName, manifest.registryVersion,

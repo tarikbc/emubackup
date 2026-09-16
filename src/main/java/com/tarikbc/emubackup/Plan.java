@@ -23,6 +23,16 @@ public final class Plan {
     /** Paths present in the previous manifest and gone now. */
     public final List<String> deleted;
 
+    /**
+     * Files that exist and could be listed but could not be opened.
+     *
+     * <p>Real and unavoidable: DuckStation writes its memory cards mode 600, so even the shell
+     * identity Shizuku provides cannot read them. They are recorded and reported rather than
+     * aborting the run, because losing every other save over one unreadable file is far worse
+     * than an honest gap.
+     */
+    public final List<String> unreadable;
+
     public final int addedCount;
     public final int changedCount;
     public final int unchangedCount;
@@ -35,11 +45,13 @@ public final class Plan {
     public final int rehashedCount;
 
     Plan(String targetId, List<FileStat> toArchive, List<ManifestFile> files, List<String> deleted,
-         int addedCount, int changedCount, int unchangedCount, int rehashedCount) {
+         List<String> unreadable, int addedCount, int changedCount, int unchangedCount,
+         int rehashedCount) {
         this.targetId = targetId;
         this.toArchive = Collections.unmodifiableList(toArchive);
         this.files = Collections.unmodifiableList(files);
         this.deleted = Collections.unmodifiableList(deleted);
+        this.unreadable = Collections.unmodifiableList(unreadable);
         this.addedCount = addedCount;
         this.changedCount = changedCount;
         this.unchangedCount = unchangedCount;

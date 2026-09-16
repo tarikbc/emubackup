@@ -52,6 +52,9 @@ public final class ManifestTarget {
     public final List<ManifestFile> files;
     public final List<String> deleted;
 
+    /** Files present on the device that could not be read, so are absent from the archive. */
+    public final List<String> skipped;
+
     /** Why a target produced nothing, when that needs explaining. */
     public final String detail;
 
@@ -60,7 +63,8 @@ public final class ManifestTarget {
                           String archiveSha256, long archiveBytes, long baseFullBytes,
                           long chainIncBytes, List<String> chain,
                           String emulatorVersionName, long emulatorVersionCode,
-                          List<ManifestFile> files, List<String> deleted, String detail) {
+                          List<ManifestFile> files, List<String> deleted, List<String> skipped,
+                          String detail) {
         this.id = id;
         this.emulator = emulator;
         this.tier = tier;
@@ -79,6 +83,7 @@ public final class ManifestTarget {
         this.emulatorVersionCode = emulatorVersionCode;
         this.files = Collections.unmodifiableList(files);
         this.deleted = Collections.unmodifiableList(deleted);
+        this.skipped = Collections.unmodifiableList(skipped);
         this.detail = detail;
     }
 
@@ -135,6 +140,7 @@ public final class ManifestTarget {
             }
             o.put("files", fs);
             o.put("deleted", new JSONArray(deleted));
+        if (!skipped.isEmpty()) o.put("skipped", new JSONArray(skipped));
             if (detail != null) o.put("detail", detail);
             return o;
             } catch (org.json.JSONException e) {
@@ -165,7 +171,7 @@ public final class ManifestTarget {
                     o.optString("archiveSha256", null), o.optLong("archiveBytes", 0),
                     o.optLong("baseFullBytes", 0), o.optLong("chainIncBytes", 0),
                     chain, o.optString("emulatorVersionName", null), o.optLong("emulatorVersionCode", -1),
-                    files, deleted, o.optString("detail", null));
+                    files, deleted, strings(o.optJSONArray("skipped")), o.optString("detail", null));
             } catch (org.json.JSONException e) {
             throw new IllegalStateException("malformed JSON in ManifestTarget", e);
         }

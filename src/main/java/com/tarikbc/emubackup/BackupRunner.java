@@ -165,6 +165,11 @@ public final class BackupRunner {
 
             if (decision.full) plan = DiffEngine.asFull(plan, scan.files, vid);
 
+            if (!plan.unreadable.isEmpty()) {
+                problems.add(t.label + ": " + plan.unreadable.size()
+                        + " file(s) could not be read and are not in this backup");
+            }
+
             if (plan.isNoOp() && priorTarget != null) {
                 // Nothing changed. Carry the previous chain forward rather than writing an empty
                 // archive, so unchanged targets cost nothing at all in a version.
@@ -208,11 +213,19 @@ public final class BackupRunner {
             long chainInc = decision.full ? 0
                     : (priorTarget == null ? 0 : priorTarget.chainIncBytes) + written.archiveBytes;
 
+            List<String> skipped = new ArrayList<>(plan.unreadable);
+            skipped.addAll(written.unreadable);
+            if (!written.unreadable.isEmpty()) {
+                problems.add(t.label + ": " + written.unreadable.size()
+                        + " file(s) became unreadable while archiving");
+            }
+
             manifestTargets.add(new ManifestTarget(id, e.id, t.tier, t.category, root,
                     TargetStatus.OK, decision.mode(),
                     decision.full ? null : (prior == null ? null : prior.version),
                     archiveName, written.sha256, written.archiveBytes, baseFull, chainInc, chain,
-                    versionNameOf(e), versionCodeOf(e), plan.files, plan.deleted, decision.reason));
+                    versionNameOf(e), versionCodeOf(e), plan.files, plan.deleted, skipped,
+                    decision.reason));
         }
 
         listener.onProgress(Progress.of(Progress.Phase.WRITING_MANIFEST, "writing manifest"));
@@ -286,7 +299,8 @@ public final class BackupRunner {
         return new ManifestTarget(t.id, e.id, t.tier, t.category,
                 scan.resolvedRoot == null ? t.root : scan.resolvedRoot, scan.status, "none",
                 null, null, null, 0, 0, 0, new ArrayList<>(),
-                versionNameOf(e), versionCodeOf(e), new ArrayList<>(), new ArrayList<>(), scan.detail);
+                versionNameOf(e), versionCodeOf(e), new ArrayList<>(), new ArrayList<>(),
+                new ArrayList<>(), scan.detail);
     }
 
     private ManifestTarget unchangedTarget(Target t, Emulator e, TargetScan scan,
@@ -294,7 +308,12 @@ public final class BackupRunner {
         return new ManifestTarget(t.id, e.id, t.tier, t.category, scan.resolvedRoot,
                 TargetStatus.OK, "unchanged", basis, null, null, 0,
                 prior.baseFullBytes, prior.chainIncBytes, prior.chain,
-                versionNameOf(e), versionCodeOf(e), plan.files, plan.deleted, "nothing changed");
+                versionNameOf(e), versionCodeOf(e), plan.files, plan.deleted, plan.unreadable,
+                // "nothing changed" would be a lie when the reason nothing was written is that
+                // the files could not be read at all.
+                plan.unreadable.isEmpty()
+                        ? "nothing changed"
+                        : plan.unreadable.size() + " file(s) could not be read");
     }
 
     private String versionNameOf(Emulator e) {

@@ -41,14 +41,16 @@ public final class DiffEngine {
 
         List<FileStat> toArchive = new ArrayList<>();
         List<ManifestFile> files = new ArrayList<>();
+        List<String> unreadable = new ArrayList<>();
         int added = 0, changed = 0, unchanged = 0, rehashed = 0;
 
         for (FileStat now : current) {
             ManifestFile was = before.remove(now.path);
 
             if (was == null) {
-                files.add(new ManifestFile(now.path, now.size, now.mtimeMs,
-                        hasher.sha256(now.path), newVersion));
+                String hash = hashOrNull(hasher, now.path, unreadable);
+                if (hash == null) continue;
+                files.add(new ManifestFile(now.path, now.size, now.mtimeMs, hash, newVersion));
                 toArchive.add(now);
                 added++;
                 continue;
@@ -60,7 +62,14 @@ public final class DiffEngine {
                 continue;
             }
 
-            String hash = hasher.sha256(now.path);
+            String hash = hashOrNull(hasher, now.path, unreadable);
+            if (hash == null) {
+                // Unreadable now but readable before. The previous entry is still valid, so it is
+                // carried forward: the bytes remain recoverable from the older archive.
+                files.add(was);
+                unchanged++;
+                continue;
+            }
             if (hash.equals(was.sha256)) {
                 // Same bytes, new timestamp. Carry the old entry forward so the bytes are not
                 // rewritten, but record the current mtime so the next run takes the fast path
@@ -78,7 +87,23 @@ public final class DiffEngine {
         // Whatever is left in `before` was in the previous manifest and is gone now.
         List<String> deleted = new ArrayList<>(before.keySet());
 
-        return new Plan(targetId, toArchive, files, deleted, added, changed, unchanged, rehashed);
+        return new Plan(targetId, toArchive, files, deleted, unreadable,
+                added, changed, unchanged, rehashed);
+    }
+
+    /**
+     * Hashes a file, or records it as unreadable and returns null.
+     *
+     * <p>A file the caller can stat but not open is a permissions fact about the device, not a
+     * failure of the backup. Aborting here would discard every other save in the run.
+     */
+    private static String hashOrNull(Hasher hasher, String path, List<String> unreadable) {
+        try {
+            return hasher.sha256(path);
+        } catch (IOException e) {
+            unreadable.add(path);
+            return null;
+        }
     }
 
     /**
@@ -93,8 +118,15 @@ public final class DiffEngine {
         for (ManifestFile f : plan.files) {
             files.add(new ManifestFile(f.path, f.size, f.mtimeMs, f.sha256, newVersion));
         }
-        return new Plan(plan.targetId, new ArrayList<>(current), files, plan.deleted,
-                current.size(), 0, 0, plan.rehashedCount);
+        // Only files that were readable have manifest entries, so a full archive covers those
+        // and no more; an unreadable file cannot be promoted into one.
+        List<FileStat> archive = new ArrayList<>();
+        java.util.Set<String> known = new java.util.HashSet<>();
+        for (ManifestFile f : files) known.add(f.path);
+        for (FileStat f : current) if (known.contains(f.path)) archive.add(f);
+
+        return new Plan(plan.targetId, archive, files, plan.deleted, plan.unreadable,
+                archive.size(), 0, 0, plan.rehashedCount);
     }
 
     private DiffEngine() {}

@@ -96,6 +96,25 @@ implementation of the glob rules in `TARGETS.md`:
 The ignored counts are as important as the found ones: 1623 BIOS images and 103 ROM
 archives sit inside target roots and are correctly excluded by filename.
 
+## App-private storage is not uniformly readable, even with Shizuku (2026-09-16)
+
+Shizuku provides the `shell` identity, which is a member of group `ext_data_rw`. Whether a
+given file under `Android/data` can be read therefore depends on the mode the owning app
+wrote it with:
+
+    Dolphin      -rw-rw----  u0_a132 ext_data_rw   readable: group bits are set
+    DuckStation  -rw-------  u0_a133 ext_data_rw   unreadable: owner only
+
+So DuckStation's memory cards cannot be backed up on a non-rooted device by any means
+available here. Root would work; `shell` cannot. Minecraft Java worlds under Amethyst show
+the same pattern for `level.dat` and `session.lock` while the game holds them.
+
+This is a fact about the device, not a defect in the app, and it is reported as such: the
+affected files are listed in each manifest's `skipped` array and surfaced as problems after
+a run. What it did expose was a real defect — a single unreadable file used to abort the
+entire backup, discarding archives already written because no manifest was ever produced.
+See the `unreadableFileIsSkippedNotFatal` test.
+
 ## Verified footprint
 
     real save / state / memcard data     ~730 MB
