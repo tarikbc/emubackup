@@ -59,6 +59,7 @@ $SRC/RomFilenameParser.java
 $SRC/GameNames.java
 $SRC/UploadDecision.java
 $SRC/DriveApi.java
+$SRC/OAuthClientInput.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java

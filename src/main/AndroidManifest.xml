@@ -68,6 +68,8 @@
 
         <activity android:name=".DriveLinkActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
+        <activity android:name=".DriveSetupActivity" android:exported="false"
+            android:parentActivityName=".DriveLinkActivity" />
 
         <activity android:name=".VersionsActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />

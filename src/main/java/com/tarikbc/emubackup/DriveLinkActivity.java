@@ -22,6 +22,8 @@ import java.util.concurrent.Executors;
  */
 public class DriveLinkActivity extends Activity {
 
+    private static final int REQ_SETUP = 1;
+
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
 
@@ -63,12 +65,15 @@ public class DriveLinkActivity extends Activity {
         lp.topMargin = dp(24);
         root.addView(action, lp);
 
-        if (!OAuthConfig.isConfigured()) {
-            instructions.setText("This build has no Google Drive client configured, so backups go "
-                    + "to a local folder.\n\nBuilding with Drive needs your own OAuth client; see "
-                    + "docs/DRIVE_SETUP.md in the repository.");
-            action.setText("Close");
-            action.setOnClickListener(v -> finish());
+        if (!DriveClient.of(this).configured()) {
+            // Telling someone holding a handheld to read a file in a git repository is not an
+            // instruction they can follow. The setup screen is one they can.
+            instructions.setText("Backups are going to a folder on this device.\n\n"
+                    + "To send them to Google Drive, this install needs its own Google client. "
+                    + "It is free and takes about ten minutes in a browser, once.");
+            action.setText("Set up Drive");
+            action.setOnClickListener(v ->
+                    startActivityForResult(new Intent(this, DriveSetupActivity.class), REQ_SETUP));
             return;
         }
         if (tokens.linked()) {
@@ -143,7 +148,7 @@ public class DriveLinkActivity extends Activity {
                     interval += 5_000L;
                     break;
                 case GRANTED:
-                    tokens.store().save(r.tokens.refreshToken);
+                    tokens.saveRefreshToken(r.tokens.refreshToken);
                     tokens.store().setAccountHint("Linked " + Manifest.iso8601(System.currentTimeMillis()));
                     post(this::showLinked);
                     return;
@@ -164,6 +169,13 @@ public class DriveLinkActivity extends Activity {
         status.setTextColor(color(R.color.danger));
         action.setText("Try again");
         action.setOnClickListener(v -> recreate());
+    }
+
+    @Override protected void onActivityResult(int req, int result, Intent data) {
+        super.onActivityResult(req, result, data);
+        // Rebuild rather than patch: a saved client changes which of the three states this
+        // screen is in, and recreate() is the only path that cannot leave a stale one behind.
+        if (req == REQ_SETUP && result == RESULT_OK) recreate();
     }
 
     @Override protected void onDestroy() {

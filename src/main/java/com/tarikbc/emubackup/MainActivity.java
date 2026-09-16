@@ -113,8 +113,10 @@ public class MainActivity extends Activity {
     }
 
     private String driveState() {
-        if (!OAuthConfig.isConfigured()) return "no client in this build, local folder";
-        return new DriveTokens(this).linked() ? "linked" : "not linked, local folder";
+        DriveClient c = DriveClient.of(this);
+        if (!c.configured()) return "no client set up, local folder";
+        if (!new DriveTokens(this).linked()) return "client ready, not linked yet";
+        return "linked · client " + OAuthClientInput.shortId(c.id);
     }
 
     private String describe(ScanSession s) {

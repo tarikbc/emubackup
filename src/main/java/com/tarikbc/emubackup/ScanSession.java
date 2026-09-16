@@ -42,7 +42,7 @@ public final class ScanSession {
         // so a cached "you are covered" would be exactly the stale reassurance to avoid.
         ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
-                OAuthConfig.isConfigured());
+                DriveClient.of(ctx).configured());
 
         TargetRegistry reg;
         try {

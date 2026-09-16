@@ -13,17 +13,22 @@ public final class DriveTokens implements DriveApi.TokenSource {
 
     private final DeviceCodeAuth auth;
     private final TokenStore store;
+    private final String clientId;
+    private final boolean haveClient;
 
     private String cached;
     private long cachedExpiresAtMs;
 
     public DriveTokens(Context ctx) {
-        this.auth = new DeviceCodeAuth(OAuthConfig.CLIENT_ID, OAuthConfig.CLIENT_SECRET);
+        DriveClient client = DriveClient.of(ctx);
+        this.auth = new DeviceCodeAuth(client.id, client.secret);
         this.store = new TokenStore(ctx);
+        this.clientId = client.id;
+        this.haveClient = client.configured();
     }
 
     public boolean linked() {
-        return OAuthConfig.isConfigured() && store.hasToken();
+        return haveClient && store.hasToken();
     }
 
     public DeviceCodeAuth auth() {
@@ -32,6 +37,12 @@ public final class DriveTokens implements DriveApi.TokenSource {
 
     public TokenStore store() {
         return store;
+    }
+
+    /** Stores a newly granted refresh token together with the client that obtained it. */
+    public void saveRefreshToken(String refreshToken) {
+        store.save(refreshToken);
+        store.setClientId(clientId);
     }
 
     @Override public synchronized String accessToken() throws IOException {
@@ -45,7 +56,7 @@ public final class DriveTokens implements DriveApi.TokenSource {
         cached = t.accessToken;
         cachedExpiresAtMs = t.expiresAtMs;
         // Google returns a new refresh token only occasionally; persist it when it does.
-        if (t.refreshToken != null && !t.refreshToken.equals(refresh)) store.save(t.refreshToken);
+        if (t.refreshToken != null && !t.refreshToken.equals(refresh)) saveRefreshToken(t.refreshToken);
         return cached;
     }
 

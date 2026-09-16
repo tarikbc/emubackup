@@ -6,7 +6,14 @@ Released APKs from CI are built without secrets, so they are local-only by desig
 
 To enable Drive you need your own Google Cloud OAuth client. This is unavoidable for an
 open-source app: a shared client ID would put every user's quota and consent under one
-project.
+project, and a published APK cannot hide the secret that would make sharing one safe.
+
+**You do not need to rebuild the app.** Open **Google Drive** in EmuBackup, tap **Set up
+Drive**, and paste the client ID and secret into the two fields. The same screen carries the
+steps below, a button that copies the scope, and a button that copies the whole checklist so
+it can be pasted on the machine where the browser is. Building with
+`EMUBACKUP_DRIVE_CLIENT_ID` is still supported and takes precedence, which is what a
+development build should do.
 
 ## Steps
 
@@ -42,7 +49,11 @@ ones; the pages are the same in any locale.
    Click **Save**.
 7. **Audience → Publish app → Confirm.** The status must read **In production**. See the
    warning below.
-8. Build:
+8. Paste the client ID and secret into **Google Drive → Set up Drive** in the app. The ID
+   field also accepts the console's downloaded JSON pasted whole, which saves picking the two
+   values out of it by hand.
+
+   To bake a client into a development build instead:
 
        EMUBACKUP_DRIVE_CLIENT_ID=xxxx.apps.googleusercontent.com \
        EMUBACKUP_DRIVE_CLIENT_SECRET=xxxx \

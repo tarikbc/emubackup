@@ -59,7 +59,7 @@ public final class RestoreSession {
     public static RestoreSession load(Context ctx, String versionId) {
         ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
-                OAuthConfig.isConfigured());
+                DriveClient.of(ctx).configured());
         try {
             BackupSink s = Stores.active(ctx);
             Manifest m;

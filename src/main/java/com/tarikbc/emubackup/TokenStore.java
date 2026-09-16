@@ -27,6 +27,7 @@ public final class TokenStore {
     private static final String KEY_ALIAS = "emubackup_drive_token";
     private static final String KEY_REFRESH = "refresh";
     private static final String KEY_ACCOUNT = "account_hint";
+    private static final String KEY_CLIENT = "client_id";
     private static final String TRANSFORM = "AES/GCM/NoPadding";
     private static final int TAG_BITS = 128;
 
@@ -71,7 +72,24 @@ public final class TokenStore {
     }
 
     public void clear() {
-        prefs.edit().remove(KEY_REFRESH).remove(KEY_ACCOUNT).apply();
+        prefs.edit().remove(KEY_REFRESH).remove(KEY_ACCOUNT).remove(KEY_CLIENT).apply();
+    }
+
+    /**
+     * Records which OAuth client obtained the stored token.
+     *
+     * <p>A refresh token is only valid for the client that issued it, so changing the client has
+     * to discard it. Without this, the choice is between discarding a perfectly good token
+     * whenever the setup screen is saved, and keeping a dead one until Google answers
+     * invalid_grant, which reads as an expired login rather than a changed setting.
+     */
+    public void setClientId(String clientId) {
+        prefs.edit().putString(KEY_CLIENT, clientId == null ? "" : clientId).apply();
+    }
+
+    /** The client that obtained the stored token, or "" when it was stored before this was kept. */
+    public String clientId() {
+        return prefs.getString(KEY_CLIENT, "");
     }
 
     public void setAccountHint(String hint) {

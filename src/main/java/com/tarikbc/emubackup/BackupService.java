@@ -165,7 +165,7 @@ public class BackupService extends Service {
             }
             ShizukuGate.Status shizuku = ShizukuGate.connect(this);
             Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
-                    OAuthConfig.isConfigured());
+                    DriveClient.of(this).configured());
             FileSource appPrivate = shizuku.ready()
                     ? new RemoteFileSource(ShizukuGate.service()) : null;
             FileSink appPrivateSink = shizuku.ready()

@@ -88,9 +88,11 @@ emulator. `test.sh` enforces that property rather than trusting it.
 Requires JDK 17, the Android SDK with platform 34 and build-tools 35.0.0, and
 `ANDROID_HOME` set.
 
-Google Drive needs your own OAuth client; see [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md).
-Without one the app uses a local folder and is fully functional. Release APKs from CI are
-built without secrets and are local-only.
+Google Drive needs your own OAuth client, which you paste into the app under **Google Drive
+→ Set up Drive**; no rebuild is involved. See [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md).
+Without one the app uses a local folder and is fully functional. Release APKs carry no
+credentials, by a rule in the workflow rather than by convention, because a published APK
+cannot keep an OAuth secret and one shared client would put every user on one project.
 
 ## Two things to know
 
