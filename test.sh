@@ -64,6 +64,7 @@ $SRC/RetentionPolicy.java
 $SRC/Settings.java
 $SRC/JobSpec.java
 $SRC/RunLog.java
+$SRC/VerifyRunner.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java

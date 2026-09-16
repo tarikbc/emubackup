@@ -67,6 +67,25 @@ public class RestorePreviewActivity extends Activity {
                 getResources().getColor(R.color.accent, null)));
         action.setOnClickListener(v -> confirmAndRun());
         int pad = (int) (getResources().getDisplayMetrics().density * 20);
+
+        // Verify sits beside Restore rather than somewhere in a menu, because the moment someone
+        // is looking at a backup is the moment the question "is this actually intact?" arises,
+        // and it is the only answer this app can give that restoring does not already imply.
+        Button verify = new Button(this);
+        verify.setText(R.string.verify_action);
+        verify.setTextColor(getResources().getColor(R.color.text_primary, null));
+        verify.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.surface_high, null)));
+        verify.setOnClickListener(v -> {
+            Intent i = new Intent(this, VerifyActivity.class);
+            i.putExtra(VerifyActivity.EXTRA_VERSION, versionId);
+            startActivity(i);
+        });
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        vlp.setMargins(pad, pad / 2, pad, 0);
+        container.addView(verify, vlp);
+
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(pad, pad / 2, pad, pad);

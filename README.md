@@ -146,6 +146,22 @@ failure with that reason rather than disappearing.
 retrying quietly forever is worse than no backup, because you believe you are covered. Every run,
 manual or scheduled, is in a log on that screen, shareable as plain text.
 
+## Checking a backup is still good
+
+Writing a backup and reporting success says the bytes left the device. It does not say they are
+still there, still whole, or still reachable. **Check this backup is intact**, on any version,
+reads every archive that version needs and checks two things:
+
+- every archive its chains extract from **exists**, including ones in much older versions
+- every archive still **hashes to what its manifest recorded**
+
+It reads the bytes rather than trusting a size, so it catches truncation, a partial upload that
+was never finished, and a file replaced by something of the same length. On a Drive backup that
+means downloading the version; there is no cheaper way to know bytes are intact, and a check that
+does not read them is not a check.
+
+On my device: `18 archives checked, 125 MB read. Every one matches.`
+
 ## What gets deleted, and what never does
 
 Retention keeps the newest N versions, 20 by default. Three things are never removed:
