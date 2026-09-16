@@ -69,6 +69,8 @@ $SRC/ExportRunner.java
 $SRC/Ago.java
 $SRC/GameHistory.java
 $SRC/Safety.java
+$SRC/Consoles.java
+$SRC/When.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java

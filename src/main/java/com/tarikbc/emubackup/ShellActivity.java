@@ -2,7 +2,7 @@ package com.tarikbc.emubackup;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -19,27 +19,30 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The launcher: a rail of four places on the left, one pane on the right, the legend below.
+ * The launcher: four places, one pane, the legend. DESIGN.md §5.
  *
- * <p>Landscape handhelds are wide and short, so the app is a rail and a pane rather than a
- * stack of cards. The rail is also the status: its dot mirrors Home, so someone three screens
- * deep still knows whether their saves are safe.
+ * <p>Two forms. Wide (landscape) puts the places on a rail to the left of the pane. Tall
+ * (portrait) puts the same four places in a tab bar under the pane, with the legend between.
+ * The form is chosen from the configuration and rebuilt on rotation without reloading
+ * anything, because a rotation must not cost a rescan or a trip to Drive.
  *
- * <p>Focus: D-pad left from a pane reaches the rail by ordinary focus search; A on a rail row
- * shows that pane and moves focus into it. B walks back one level: a sheet, then the pane's
- * own detail, then the rail, then Home, then out. L1/R1 step through the rail.
+ * <p>Focus: D-pad left from a pane reaches the rail by ordinary focus search; A on a place
+ * shows that pane and moves focus into it. B walks back one level: a sheet, the pane's own
+ * detail, the rail, Home, out. L1/R1 step through the places.
  */
 public class ShellActivity extends GamepadActivity {
 
     enum Dest { HOME, GAMES, BACKUPS, SETTINGS }
 
+    private static final String[] LABELS = { "Home", "Games", "Backups", "Settings" };
     private static final int REQ_NOTIFICATIONS = 7;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
 
+    private boolean tall;
     private FrameLayout paneHost;
-    private final TextView[] railRows = new TextView[Dest.values().length];
+    private final TextView[] placeRows = new TextView[Dest.values().length];
     private View dot;
     private TextView dotWord;
     private final Pane[] panes = new Pane[Dest.values().length];
@@ -48,19 +51,8 @@ public class ShellActivity extends GamepadActivity {
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        root.addView(rail(), new LinearLayout.LayoutParams(Ui.dp(this, 150),
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        paneHost = new FrameLayout(this);
-        root.addView(paneHost, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
-        setContentView(root);
-
         panes[Dest.HOME.ordinal()] = new HomePane(this);
-        panes[Dest.GAMES.ordinal()] = new LinksPane(this, "Games",
-                "Each game with its own history is coming here. For now, every save folder.",
-                new LinksPane.Link("Every save folder", "What was found on this device",
-                        () -> open(TargetsActivity.class)));
+        panes[Dest.GAMES.ordinal()] = new GamesPane(this);
         panes[Dest.BACKUPS.ordinal()] = new LinksPane(this, "Backups", null,
                 new LinksPane.Link("All backups", "Newest first. Put one back, check it, or export it",
                         () -> open(VersionsActivity.class)));
@@ -81,6 +73,7 @@ public class ShellActivity extends GamepadActivity {
                     open(OnboardingActivity.class);
                 }));
 
+        build();
         show(Dest.HOME, false);
 
         // The shell stays the launcher and the walkthrough opens on top of it, so leaving the
@@ -88,6 +81,46 @@ public class ShellActivity extends GamepadActivity {
         if (!Onboarding.isComplete(this)) {
             startActivity(new Intent(this, OnboardingActivity.class));
         }
+    }
+
+    boolean isTall() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    /** Builds the shell for the current form. Safe to call again after a rotation. */
+    private void build() {
+        tall = isTall();
+        paneHost = new FrameLayout(this);
+        if (tall) {
+            setShell(paneHost, tabBar());
+        } else {
+            LinearLayout root = new LinearLayout(this);
+            root.setOrientation(LinearLayout.HORIZONTAL);
+            root.addView(rail(), new LinearLayout.LayoutParams(Ui.dp(this, 150),
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            root.addView(paneHost, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+            setContentView(root);
+        }
+        if (model != null) renderStatus(model);
+    }
+
+    @Override public void onConfigurationChanged(Configuration cfg) {
+        super.onConfigurationChanged(cfg);
+        if (isTall() == tall) return;
+        for (Pane p : panes) if (p != null) p.invalidateView();
+        build();
+        show(current, false);
+    }
+
+    private TextView placeRow(Dest d, int sp) {
+        TextView row = Ui.text(this, LABELS[d.ordinal()], sp, R.color.text_primary);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.rail_row);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setOnClickListener(v -> show(d, true));
+        placeRows[d.ordinal()] = row;
+        return row;
     }
 
     private View rail() {
@@ -100,16 +133,9 @@ public class ShellActivity extends GamepadActivity {
         name.setPadding(Ui.dp(this, 16), 0, 0, Ui.dp(this, 14));
         rail.addView(name);
 
-        String[] labels = { "Home", "Games", "Backups", "Settings" };
         for (Dest d : Dest.values()) {
-            TextView row = Ui.text(this, labels[d.ordinal()], 16, R.color.text_primary);
-            row.setGravity(Gravity.CENTER_VERTICAL);
+            TextView row = placeRow(d, 16);
             row.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 8), 0);
-            row.setBackgroundResource(R.drawable.rail_row);
-            row.setFocusable(true);
-            row.setClickable(true);
-            row.setOnClickListener(v -> show(d, true));
-            railRows[d.ordinal()] = row;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52));
             lp.topMargin = Ui.dp(this, 2);
@@ -131,8 +157,55 @@ public class ShellActivity extends GamepadActivity {
         return rail;
     }
 
+    /** The tall form's places. The status dot rides on Home, because Home is the status. */
+    private View tabBar() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setBackgroundColor(Ui.color(this, R.color.surface_low));
+        bar.setPadding(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
+        for (Dest d : Dest.values()) {
+            TextView row = placeRow(d, 13);
+            row.setGravity(Gravity.CENTER);
+            if (d == Dest.HOME) {
+                dot = Ui.dot(this, R.color.text_tertiary, 8);
+                android.graphics.drawable.Drawable dd = dot.getBackground();
+                dd.setBounds(0, 0, Ui.dp(this, 8), Ui.dp(this, 8));
+                row.setCompoundDrawablePadding(Ui.dp(this, 6));
+                row.setCompoundDrawables(dd, null, null, null);
+            }
+            bar.addView(row, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1f));
+        }
+        dotWord = null;
+        return bar;
+    }
+
     FrameLayout paneHost() {
         return paneHost;
+    }
+
+    HomeModel model() {
+        return model;
+    }
+
+    ExecutorService io() {
+        return io;
+    }
+
+    Handler ui() {
+        return ui;
+    }
+
+    /** A pane's state changed in a way that changes what the buttons mean. */
+    void refreshLegend() {
+        legendFor(pane());
+    }
+
+    /** Hands an approved plan to the service and shows its progress. */
+    void startRestore(BackupService.RestoreRequest request) {
+        BackupService.startRestore(this, request);
+        Intent i = new Intent(this, BackupActivity.class);
+        i.putExtra(BackupActivity.EXTRA_RESTORE, true);
+        startActivity(i);
     }
 
     private Pane pane() {
@@ -142,7 +215,7 @@ public class ShellActivity extends GamepadActivity {
     private void show(Dest d, boolean focusPane) {
         current = d;
         for (Dest x : Dest.values()) {
-            TextView row = railRows[x.ordinal()];
+            TextView row = placeRows[x.ordinal()];
             boolean on = x == d;
             row.setTextColor(Ui.color(this, on ? R.color.accent : R.color.text_primary));
             row.setTypeface(on ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
@@ -151,7 +224,6 @@ public class ShellActivity extends GamepadActivity {
         Pane p = pane();
         paneHost.addView(p.view(), new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        if (d == Dest.HOME && model != null) ((HomePane) p).render(model);
         p.refresh();
         legendFor(p);
         if (focusPane) {
@@ -173,29 +245,33 @@ public class ShellActivity extends GamepadActivity {
 
     @Override protected void onResume() {
         super.onResume();
-        dotWord.setText("Checking");
+        if (dotWord != null) dotWord.setText("Checking");
         io.execute(() -> {
             final HomeModel m = HomeModel.load(this);
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 model = m;
-                int hue = hueOf(m.report.state);
-                ((android.graphics.drawable.GradientDrawable) dot.getBackground())
-                        .setColor(Ui.color(this, hue));
-                dotWord.setText(wordOf(m.report.state));
-                dotWord.setTextColor(Ui.color(this, hue));
-                HomePane home = (HomePane) panes[Dest.HOME.ordinal()];
-                home.render(m);
-                // Out of touch mode the framework hands initial focus to the first rail row
+                renderStatus(m);
+                for (Pane p : panes) if (p != null) p.onModel(m);
+                // Out of touch mode the framework hands initial focus to the first place
                 // before anything has loaded. Once Home has an answer, the answer's button is
                 // where a thumb should be resting.
                 View f = getCurrentFocus();
-                boolean parked = f == null || f == railRows[Dest.HOME.ordinal()];
+                boolean parked = f == null || f == placeRows[Dest.HOME.ordinal()];
                 if (current == Dest.HOME && parked && GamepadActivity.gamepadPresent()) {
-                    focusByDefault(home.defaultFocus());
+                    focusByDefault(pane().defaultFocus());
                 }
             });
         });
+    }
+
+    private void renderStatus(HomeModel m) {
+        int hue = hueOf(m.report.state);
+        ((android.graphics.drawable.GradientDrawable) dot.getBackground()).setColor(Ui.color(this, hue));
+        if (dotWord != null) {
+            dotWord.setText(wordOf(m.report.state));
+            dotWord.setTextColor(Ui.color(this, hue));
+        }
     }
 
     @Override protected void onDestroy() {
@@ -294,17 +370,21 @@ public class ShellActivity extends GamepadActivity {
         pane().help();
     }
 
+    @Override protected void onGamepadX() {
+        pane().onX();
+    }
+
     @Override public void onBackPressed() {
         if (pane().back()) return;
         View f = getCurrentFocus();
         boolean inPane = f != null && isDescendant(f, paneHost);
         if (inPane) {
-            railRows[current.ordinal()].requestFocus();
+            placeRows[current.ordinal()].requestFocus();
             return;
         }
         if (current != Dest.HOME) {
             show(Dest.HOME, false);
-            railRows[Dest.HOME.ordinal()].requestFocus();
+            placeRows[Dest.HOME.ordinal()].requestFocus();
             return;
         }
         super.onBackPressed();

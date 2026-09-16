@@ -186,7 +186,8 @@ public final class GameHistory {
         return out;
     }
 
-    private static Map<String, SaveGroup> groupsOf(TargetRegistry registry, Manifest m) {
+    /** The save groups a manifest holds, keyed by {@link #keyOf}. */
+    static Map<String, SaveGroup> groupsOf(TargetRegistry registry, Manifest m) {
         Map<String, SaveGroup> out = new LinkedHashMap<>();
         for (ManifestTarget t : m.targets) {
             if (t.files.isEmpty() || !registry.hasTarget(t.id)) continue;

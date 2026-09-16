@@ -50,6 +50,11 @@ public abstract class GamepadActivity extends Activity {
     }
 
     @Override public void setContentView(View view) {
+        setShell(view, null);
+    }
+
+    /** @param footer sits under the legend bar; the tall form's tab bar. May be null. */
+    protected void setShell(View view, View footer) {
         LinearLayout shell = new LinearLayout(this);
         shell.setOrientation(LinearLayout.VERTICAL);
         shell.setBackgroundColor(getResources().getColor(R.color.ink_black, null));
@@ -64,8 +69,13 @@ public abstract class GamepadActivity extends Activity {
 
         content.addView(view, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (footer != null) {
+            shell.addView(footer, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
         super.setContentView(shell);
         setLegend("A", "Select", "B", "Back");
+        refreshLegend();
     }
 
     /** Pairs: button, meaning. Call whenever the meaning changes on this screen. */

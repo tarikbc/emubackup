@@ -24,15 +24,25 @@ final class HomeModel {
     final Map<String, GameHistory.Entry> games;
     /** The picked folder's name, when that is where backups go. */
     final String folderLabel;
+    /** Every version in the store, oldest first; empty when unreachable. */
+    final List<IndexEntry> index;
+    /** Names for game ids, derived from the ROM library. Empty when storage is unreadable. */
+    final GameNames names;
+    /** Target ids the backup covers, per the current settings. */
+    final java.util.Set<String> selected;
 
     private HomeModel(Safety.Report report, Safety.Input input, ScanSession scan,
-                      String storeError, Map<String, GameHistory.Entry> games, String folderLabel) {
+                      String storeError, Map<String, GameHistory.Entry> games, String folderLabel,
+                      List<IndexEntry> index, GameNames names, java.util.Set<String> selected) {
         this.report = report;
         this.input = input;
         this.scan = scan;
         this.storeError = storeError;
         this.games = games;
         this.folderLabel = folderLabel;
+        this.index = index;
+        this.names = names;
+        this.selected = selected;
     }
 
     static HomeModel load(Context ctx) {
@@ -120,8 +130,17 @@ final class HomeModel {
         }
         in.gamesLocked = locked;
 
+        GameNames names = GameNames.empty();
+        if (in.storageAccess) {
+            try {
+                names = RomIndexer.build(ctx).names;
+            } catch (Exception unreadable) {
+                // Raw ids are still correct, just less friendly.
+            }
+        }
         return new HomeModel(Safety.assess(in), in, s, vs.error, games,
-                in.where == Safety.Where.FOLDER ? Destination.folderLabel(ctx) : null);
+                in.where == Safety.Where.FOLDER ? Destination.folderLabel(ctx) : null,
+                vs.list, names, selected);
     }
 
     private static Map<String, Manifest> manifests(Context ctx, List<IndexEntry> index) {

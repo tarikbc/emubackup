@@ -4,13 +4,15 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 /**
- * The answer. One headline, one action, four facts.
+ * The answer. One headline, one action, four facts. DESIGN.md §5 "Home reflow".
  *
- * <p>Status on the left, where the eye lands first; facts and the button on the right. Every
- * state has exactly one thing to press, and it is the fix, not a menu that contains the fix.
+ * <p>Wide: status on the left, where the eye lands first; facts on the right. Tall: one
+ * column, facts last. Every state has exactly one thing to press, and it is the fix, not a
+ * menu that contains the fix.
  */
 final class HomePane extends Pane {
 
@@ -24,16 +26,14 @@ final class HomePane extends Pane {
 
     @Override protected View create() {
         ShellActivity c = host;
-        LinearLayout root = new LinearLayout(c);
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        root.setPadding(Ui.dp(c, 32), Ui.dp(c, 24), Ui.dp(c, 32), Ui.dp(c, 24));
+        boolean tall = c.isTall();
 
         LinearLayout left = new LinearLayout(c);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setGravity(Gravity.CENTER_VERTICAL);
         stateWord = Ui.bold(c, "", 14, R.color.text_secondary);
         left.addView(stateWord);
-        headline = Ui.bold(c, "Checking your saves\u2026", 30, R.color.text_primary);
+        headline = Ui.bold(c, "Checking your saves\u2026", tall ? 26 : 30, R.color.text_primary);
         left.addView(headline, top(c, 8));
         detail = Ui.text(c, "", 16, R.color.text_secondary);
         left.addView(detail, top(c, 10));
@@ -43,11 +43,11 @@ final class HomePane extends Pane {
             if (model != null) host.perform(model.report.action);
         });
         LinearLayout.LayoutParams alp = top(c, 24);
-        alp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        alp.width = tall ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
         left.addView(action, alp);
         help = Ui.text(c, "What does this mean?", 14, R.color.text_secondary);
         help.setBackgroundResource(R.drawable.rail_row);
-        help.setPadding(Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 12), Ui.dp(c, 8));
+        help.setPadding(Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 12));
         help.setFocusable(true);
         help.setClickable(true);
         help.setOnClickListener(v -> help());
@@ -55,11 +55,7 @@ final class HomePane extends Pane {
         hlp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         hlp.leftMargin = -Ui.dp(c, 12);
         left.addView(help, hlp);
-        root.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 3f));
 
-        LinearLayout right = new LinearLayout(c);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(Ui.card(c, R.color.surface));
@@ -69,6 +65,26 @@ final class HomePane extends Pane {
         where = fact(card, "Kept in");
         next = fact(card, "Next backup");
         games = fact(card, "Games found");
+
+        if (tall) {
+            ScrollView sv = new ScrollView(c);
+            LinearLayout col = new LinearLayout(c);
+            col.setOrientation(LinearLayout.VERTICAL);
+            col.setPadding(Ui.dp(c, 20), Ui.dp(c, 24), Ui.dp(c, 20), Ui.dp(c, 24));
+            col.addView(left, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            col.addView(card, top(c, 24));
+            sv.addView(col);
+            return sv;
+        }
+
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setPadding(Ui.dp(c, 32), Ui.dp(c, 24), Ui.dp(c, 32), Ui.dp(c, 24));
+        root.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 3f));
+        LinearLayout right = new LinearLayout(c);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setGravity(Gravity.CENTER_VERTICAL);
         right.addView(card, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 2f);
@@ -90,6 +106,14 @@ final class HomePane extends Pane {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, dp);
         return lp;
+    }
+
+    @Override void refresh() {
+        if (host.model() != null) render(host.model());
+    }
+
+    @Override void onModel(HomeModel m) {
+        render(m);
     }
 
     void render(HomeModel m) {
@@ -134,6 +158,7 @@ final class HomePane extends Pane {
     }
 
     @Override View defaultFocus() {
+        view();
         return action != null && action.getVisibility() == View.VISIBLE ? action : null;
     }
 
