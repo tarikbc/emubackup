@@ -102,6 +102,7 @@ public final class ArchiveReader {
             String versionId = ref.substring(0, slash);
             String archive = ref.substring(slash + 1);
 
+            String inFlight = null;
             try (InputStream raw = sink.openFile(versionId, archive);
                  ZipInputStream zin = new ZipInputStream(raw)) {
                 ZipEntry ze;
@@ -112,6 +113,7 @@ public final class ArchiveReader {
 
                     listener.onFile(ze.getName(), ++index, wanted.size(), bytesDone, bytesTotal);
 
+                    inFlight = ze.getName();
                     String actual;
                     try (OutputStream out = writer.open(ze.getName())) {
                         actual = copyAndHash(zin, out);
@@ -121,12 +123,27 @@ public final class ArchiveReader {
                         // this file leaves the original in place, which is the safe direction.
                         writer.discard(ze.getName());
                         corrupt.add(ze.getName());
+                        inFlight = null;
                         continue;
                     }
                     writer.commit(ze.getName(), expected);
+                    inFlight = null;
                     written++;
                     bytesDone += expected.size;
                 }
+            } catch (IOException e) {
+                // A truncated or damaged archive throws out of the zip layer rather than
+                // returning a bad entry: "Unexpected end of ZLIB input stream" is what a half
+                // an archive looks like. Letting that escape would abandon every later target
+                // too, so one broken archive would cost a whole restore. It is recorded as
+                // corrupt, like any other content that does not match, and the loop goes on.
+                if (inFlight != null) {
+                    writer.discard(inFlight);
+                    corrupt.add(inFlight);
+                    want.remove(inFlight);
+                }
+                for (String stillWanted : want.keySet()) corrupt.add(stillWanted);
+                want.clear();
             }
             if (cancelled) break;
             missing.addAll(want.keySet());

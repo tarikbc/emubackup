@@ -188,6 +188,17 @@ does not read them is not a check.
 
 On my device: `18 archives checked, 125 MB read. Every one matches.`
 
+## Taking a backup somewhere else
+
+**Export as one zip**, on any version, merges that version and everything its chains extract
+from into a single ordinary file. No chain to follow, nothing else to download: unzip it and the
+saves are there, one directory per target, with the manifest and a plain-English README beside
+them.
+
+Every file is checked against its recorded SHA-256 on the way in, so an export is also a check.
+Anything that fails is left out and named rather than written wrong, because a zip that unpacks
+into subtly corrupt saves is worse than one that is visibly short.
+
 ## What gets deleted, and what never does
 
 Retention keeps the newest N versions, 20 by default. Three things are never removed:

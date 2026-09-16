@@ -81,10 +81,31 @@ public class RestorePreviewActivity extends Activity {
             i.putExtra(VerifyActivity.EXTRA_VERSION, versionId);
             startActivity(i);
         });
+        Button export = new Button(this);
+        export.setText(R.string.export_action);
+        export.setTextColor(getResources().getColor(R.color.text_primary, null));
+        export.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.surface_high, null)));
+        export.setOnClickListener(v -> {
+            Intent i = new Intent(this, ExportActivity.class);
+            i.putExtra(ExportActivity.EXTRA_VERSION, versionId);
+            startActivity(i);
+        });
+
+        // Side by side, because they are the two ways of answering "is this backup any good?"
+        // without touching the device: read it and check it, or read it and take it away.
+        LinearLayout secondary = new LinearLayout(this);
+        secondary.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams half =
+                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        secondary.addView(verify, half);
+        secondary.addView(export, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
         LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         vlp.setMargins(pad, pad / 2, pad, 0);
-        container.addView(verify, vlp);
+        container.addView(secondary, vlp);
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);

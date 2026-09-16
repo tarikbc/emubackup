@@ -72,6 +72,8 @@
         <activity android:name=".GroupsActivity" android:exported="false"
             android:parentActivityName=".TargetsActivity" />
 
+        <activity android:name=".ExportActivity" android:exported="false"
+            android:parentActivityName=".RestorePreviewActivity" />
         <activity android:name=".VerifyActivity" android:exported="false"
             android:parentActivityName=".RestorePreviewActivity" />
         <activity android:name=".ScheduleActivity" android:exported="false"

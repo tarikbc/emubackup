@@ -26,7 +26,8 @@
     <string name="restore_title">Restore</string>
     <string name="restore_action">Restore these files</string>
     <string name="restoring">Restoring</string>
-    <string name="verify_action">Check this backup is intact</string>
+    <string name="verify_action">Check it is intact</string>
+    <string name="export_action">Export as one zip</string>
     <string name="schedule_title">Automatic backups</string>
     <string name="destination_title">Where backups go</string>
     <string name="drive_title">Google Drive</string>
