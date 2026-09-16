@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test;
 
 class RemediesTest {
 
-    @Test void duckstationHasAStep() {
+    @Test void duckstationSaysWhatWasSeen() {
         Remedies.Remedy r = Remedies.forTarget("duckstation-memcards", "DuckStation");
-        assertTrue(r.fixable());
-        assertTrue(r.text.contains("Memory Cards"));
+        assertFalse(r.fixable());
+        assertTrue(r.text.contains("older version"));
     }
 
     @Test void othersSayWhyNot() {

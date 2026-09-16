@@ -31,10 +31,13 @@ public final class Remedies {
     public static Remedy forTarget(String targetId, String emulator) {
         switch (targetId) {
             case "duckstation-memcards":
-                return new Remedy("DuckStation can keep its memory cards where EmuBackup can read "
-                        + "them. In DuckStation: Settings, Memory Cards, Directory; choose a folder "
-                        + "under ROMs/ps1, then move the cards there once. The next backup will "
-                        + "include them.", "Open DuckStation");
+                // Observed on the reference device: a per-game card written by an older build is
+                // 0600; the card the current build writes is group-readable. No setting changes
+                // an existing file's mode, and DuckStation has none for the folder.
+                return new Remedy("DuckStation wrote this card in a way only it can read; the cards "
+                        + "it writes now are readable, so this is a card from an older version. "
+                        + "There is no setting for it. Set it aside and Home stops raising it; "
+                        + "the folder still says it is partly backed up.", null);
             default:
                 return new Remedy(emulator + " keeps these files to itself; nothing outside it can "
                         + "read them, and there is no setting to change that. Everything else in "
