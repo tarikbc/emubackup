@@ -29,6 +29,19 @@ public class BackupService extends Service {
         void onFinished(String summary, boolean failed);
     }
 
+    /** A restore the preview screen has approved. Set immediately before starting the service. */
+    public static final class RestoreRequest {
+        public final String versionId;
+        public final java.util.List<RestorePlan> plans;
+
+        public RestoreRequest(String versionId, java.util.List<RestorePlan> plans) {
+            this.versionId = versionId;
+            this.plans = plans;
+        }
+    }
+
+    public static volatile RestoreRequest PENDING_RESTORE;
+
     /** The most recent snapshot, readable by whichever Activity comes to the front. */
     public static volatile Progress PROGRESS;
     public static volatile Listener LISTENER;
@@ -38,8 +51,15 @@ public class BackupService extends Service {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private PowerManager.WakeLock wakeLock;
+    private volatile boolean restoring;
 
     public static void start(Context ctx) {
+        PENDING_RESTORE = null;
+        ctx.startForegroundService(new Intent(ctx, BackupService.class));
+    }
+
+    public static void startRestore(Context ctx, RestoreRequest request) {
+        PENDING_RESTORE = request;
         ctx.startForegroundService(new Intent(ctx, BackupService.class));
     }
 
@@ -56,16 +76,17 @@ public class BackupService extends Service {
         RUNNING = true;
         cancelRequested = false;
 
+        restoring = PENDING_RESTORE != null;
         Notifications.ensureChannels(this);
         startForeground(Notifications.ID_PROGRESS,
-                Notifications.progress(this, "Backing up", "Scanning…", -1),
+                Notifications.progress(this, restoring ? "Restoring" : "Backing up", "Starting…", -1),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
 
         PowerManager pm = getSystemService(PowerManager.class);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "EmuBackup:backup");
         wakeLock.acquire(30 * 60 * 1000L);
 
-        io.execute(this::runBackup);
+        io.execute(restoring ? this::runRestore : this::runBackup);
         return START_NOT_STICKY;
     }
 
@@ -121,6 +142,59 @@ public class BackupService extends Service {
         stopSelf();
     }
 
+    private void runRestore() {
+        RestoreRequest request = PENDING_RESTORE;
+        String summary;
+        boolean failed = false;
+        try {
+            if (request == null) throw new IllegalStateException("no restore was requested");
+            LocalFolderSink sink = RestoreSession.sink();
+            Manifest m;
+            try (java.io.InputStream in = sink.openFile(request.versionId, "manifest.json")) {
+                m = Manifest.fromJson(BackupRunner.readAll(in));
+            }
+            Capabilities caps = new Capabilities(Permissions.hasAllFiles(), false,
+                    OAuthConfig.isConfigured());
+
+            RestoreRunner runner = new RestoreRunner(sink, new LocalFileSource(), null,
+                    new LocalFileSink(), null, caps);
+            RestoreRunner.Result r = runner.run(m, request.plans, System.currentTimeMillis(),
+                    new RestoreRunner.Listener() {
+                        @Override public void onProgress(Progress p) { publish(p); }
+                        @Override public boolean isCancelled() { return cancelRequested; }
+                    });
+
+            StringBuilder b = new StringBuilder();
+            b.append(r.cancelled ? "Cancelled after " : "Restored ")
+                    .append(r.filesWritten).append(" files (").append(Sizes.human(r.bytesWritten)).append(")");
+            if (r.snapshotVersionId != null) {
+                b.append("\nWhat was replaced is saved in ").append(r.snapshotVersionId);
+            }
+            if (!r.corrupt.isEmpty()) b.append("\n").append(r.corrupt.size())
+                    .append(" file(s) failed verification and were left alone");
+            if (!r.missing.isEmpty()) b.append("\n").append(r.missing.size())
+                    .append(" file(s) could not be found in the archives");
+            if (!r.failures.isEmpty()) b.append("\n").append(String.join("\n", r.failures));
+            failed = !r.ok() && !r.cancelled;
+            summary = b.toString();
+            publish(Progress.of(r.cancelled ? Progress.Phase.CANCELLED : Progress.Phase.DONE, summary));
+        } catch (Exception e) {
+            failed = true;
+            summary = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            publish(Progress.of(Progress.Phase.FAILED, summary));
+        }
+
+        PENDING_RESTORE = null;
+        Notifications.result(this, failed ? "Restore failed" : "Restore finished", summary);
+        Listener l = LISTENER;
+        if (l != null) l.onFinished(summary, failed);
+
+        RUNNING = false;
+        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopSelf();
+    }
+
     private void publish(Progress p) {
         PROGRESS = p;
         Listener l = LISTENER;
@@ -130,7 +204,7 @@ public class BackupService extends Service {
                 ? p.targetLabel + (p.fileName == null ? "" : " · " + p.fileName)
                 : (p.message == null ? "" : p.message);
         getSystemService(android.app.NotificationManager.class).notify(Notifications.ID_PROGRESS,
-                Notifications.progress(this, "Backing up", text, p.percent()));
+                Notifications.progress(this, restoring ? "Restoring" : "Backing up", text, p.percent()));
     }
 
     private String appVersion() {

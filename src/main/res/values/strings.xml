@@ -21,4 +21,9 @@
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
     <string name="backup_running">Backing up</string>
+    <string name="versions_title">Backups</string>
+    <string name="no_versions">No backups yet. Run one from the home screen.</string>
+    <string name="restore_title">Restore</string>
+    <string name="restore_action">Restore these files</string>
+    <string name="restoring">Restoring</string>
 </resources>

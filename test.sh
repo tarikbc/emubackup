@@ -47,6 +47,12 @@ $SRC/BackupIndex.java
 $SRC/Progress.java
 $SRC/EmulatorVersions.java
 $SRC/BackupRunner.java
+$SRC/ArchiveReader.java
+$SRC/RestoreAction.java
+$SRC/RestoreItem.java
+$SRC/RestorePlan.java
+$SRC/RestorePlanner.java
+$SRC/RestoreRunner.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,

@@ -63,6 +63,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <activity android:name=".VersionsActivity" android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity android:name=".RestorePreviewActivity" android:exported="false"
+            android:parentActivityName=".VersionsActivity" />
+
         <activity android:name=".TargetsActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
 

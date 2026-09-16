@@ -19,7 +19,11 @@ import android.widget.TextView;
  */
 public class BackupActivity extends Activity implements BackupService.Listener {
 
+    /** Set when this screen is showing a restore rather than a backup. */
+    public static final String EXTRA_RESTORE = "restore";
+
     private final Handler ui = new Handler(Looper.getMainLooper());
+    private boolean restoreMode;
 
     private TextView phase, target, file, summary;
     private ProgressBar bar;
@@ -28,6 +32,7 @@ public class BackupActivity extends Activity implements BackupService.Listener {
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
+        restoreMode = getIntent().getBooleanExtra(EXTRA_RESTORE, false);
         setContentView(R.layout.activity_backup);
         phase = findViewById(R.id.phase);
         target = findViewById(R.id.target);
@@ -46,7 +51,9 @@ public class BackupActivity extends Activity implements BackupService.Listener {
             }
         });
 
-        if (!BackupService.RUNNING && BackupService.PROGRESS == null) {
+        // A restore is started by the preview screen, which has already been approved. Only a
+        // plain backup is kicked off from here.
+        if (!restoreMode && !BackupService.RUNNING && BackupService.PROGRESS == null) {
             BackupService.start(this);
         }
     }
@@ -93,7 +100,7 @@ public class BackupActivity extends Activity implements BackupService.Listener {
         switch (p.phase) {
             case SCANNING: phase.setText("Scanning"); break;
             case DIFFING: phase.setText("Comparing"); break;
-            case ARCHIVING: phase.setText("Archiving"); break;
+            case ARCHIVING: phase.setText(restoreMode ? "Restoring" : "Archiving"); break;
             case WRITING_MANIFEST: phase.setText("Writing manifest"); break;
             case DONE: phase.setText("Finished"); break;
             case CANCELLED: phase.setText("Cancelled"); break;

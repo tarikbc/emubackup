@@ -44,6 +44,8 @@ public class MainActivity extends Activity {
                 v -> startActivity(new Intent(this, BackupActivity.class)));
         ((Button) findViewById(R.id.btn_targets)).setOnClickListener(
                 v -> startActivity(new Intent(this, TargetsActivity.class)));
+        ((Button) findViewById(R.id.btn_versions)).setOnClickListener(
+                v -> startActivity(new Intent(this, VersionsActivity.class)));
         ((Button) findViewById(R.id.btn_permissions)).setOnClickListener(
                 v -> startActivity(new Intent(this, PermissionActivity.class)));
     }
