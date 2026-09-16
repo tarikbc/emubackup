@@ -47,7 +47,7 @@ public class MainActivity extends Activity {
         ((Button) findViewById(R.id.btn_versions)).setOnClickListener(
                 v -> startActivity(new Intent(this, VersionsActivity.class)));
         ((Button) findViewById(R.id.btn_drive)).setOnClickListener(
-                v -> startActivity(new Intent(this, DriveLinkActivity.class)));
+                v -> startActivity(new Intent(this, DestinationActivity.class)));
         ((Button) findViewById(R.id.btn_permissions)).setOnClickListener(
                 v -> startActivity(new Intent(this, PermissionActivity.class)));
     }
@@ -112,11 +112,17 @@ public class MainActivity extends Activity {
         statusHue.setBackgroundColor(getResources().getColor(colorRes, null));
     }
 
-    private String driveState() {
-        DriveClient c = DriveClient.of(this);
-        if (!c.configured()) return "no client set up, local folder";
-        if (!new DriveTokens(this).linked()) return "client ready, not linked yet";
-        return "linked · client " + OAuthClientInput.shortId(c.id);
+    private String destinationState() {
+        switch (Destination.effective(this)) {
+            case DRIVE:
+                return "Google Drive";
+            case FOLDER:
+                return Destination.folderLabel(this);
+            case DEVICE:
+            default:
+                return Stores.localRoot().getAbsolutePath()
+                        + (Destination.chosenButUnavailable(this) ? "  (fallback)" : "");
+        }
     }
 
     private String describe(ScanSession s) {
@@ -128,7 +134,7 @@ public class MainActivity extends Activity {
         if (!s.caps.appPrivate && s.shizuku.detail != null) {
             b.append("            ").append(s.shizuku.detail).append('\n');
         }
-        b.append("drive       ").append(driveState()).append('\n');
+        b.append("backups to  ").append(destinationState()).append('\n');
         if (s.registry != null) {
             b.append("registry    v").append(s.registry.registryVersion())
                     .append(", ").append(s.registry.emulators().size()).append(" emulators, ")

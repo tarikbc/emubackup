@@ -26,5 +26,6 @@
     <string name="restore_title">Restore</string>
     <string name="restore_action">Restore these files</string>
     <string name="restoring">Restoring</string>
+    <string name="destination_title">Where backups go</string>
     <string name="drive_title">Google Drive</string>
 </resources>

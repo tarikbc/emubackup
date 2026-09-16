@@ -66,8 +66,10 @@
         <activity android:name=".GroupsActivity" android:exported="false"
             android:parentActivityName=".TargetsActivity" />
 
-        <activity android:name=".DriveLinkActivity" android:exported="false"
+        <activity android:name=".DestinationActivity" android:exported="false"
             android:parentActivityName=".MainActivity" />
+        <activity android:name=".DriveLinkActivity" android:exported="false"
+            android:parentActivityName=".DestinationActivity" />
         <activity android:name=".DriveSetupActivity" android:exported="false"
             android:parentActivityName=".DriveLinkActivity" />
 

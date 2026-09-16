@@ -38,12 +38,17 @@ public final class Stores {
      */
     public static BackupSink active(Context ctx, DriveApi.ProgressListener progress)
             throws IOException {
-        DriveTokens tokens = new DriveTokens(ctx);
-        if (tokens.linked()) {
-            File staging = new File(ctx.getExternalFilesDir(null), "staging");
-            return new DriveSink(new DriveApi(tokens), staging, progress);
+        File staging = new File(ctx.getExternalFilesDir(null), "staging");
+        switch (Destination.effective(ctx)) {
+            case DRIVE:
+                return new DriveSink(new DriveApi(new DriveTokens(ctx)), staging, progress);
+            case FOLDER:
+                return new SafFolderSink(ctx, Destination.folderUri(ctx),
+                        Destination.folderLabel(ctx), staging);
+            case DEVICE:
+            default:
+                return new LocalFolderSink(localRoot().getAbsolutePath());
         }
-        return new LocalFolderSink(localRoot().getAbsolutePath());
     }
 
     /** The active store, for callers that only read. */

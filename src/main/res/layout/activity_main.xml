@@ -72,7 +72,7 @@
 
         <Button android:id="@+id/btn_drive"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="@string/drive_title"
+            android:layout_marginTop="8dp" android:text="@string/destination_title"
             android:textColor="@color/text_primary" android:backgroundTint="@color/surface_high" />
 
         <Button android:id="@+id/btn_permissions"
