@@ -35,11 +35,18 @@ jobs:
       - name: Unit tests
         run: ./test.sh
 
+      # A tag build without signing secrets still has to produce an APK. Decoding an empty
+      # secret writes an empty file, and apksigner then dies on a keystore that is zero bytes,
+      # which fails the release for a reason that has nothing to do with the code.
       - name: Decode release keystore
-        if: startsWith(github.ref, 'refs/tags/v')
+        id: signing
+        if: startsWith(github.ref, 'refs/tags/v') && env.KEYSTORE_B64 != ''
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
           mkdir -p keystore
-          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore/emubackup-release.jks
+          echo "$KEYSTORE_B64" | base64 -d > keystore/emubackup-release.jks
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Build
         env:
@@ -51,7 +58,7 @@ jobs:
           # shared quota, one suspendable project, and the maintainer's support address on
           # everyone's consent screen. Released APKs are therefore local-folder builds, and
           # Drive is enabled per user with their own client. See docs/DRIVE_SETUP.md.
-          KEYSTORE: ${{ startsWith(github.ref, 'refs/tags/v') && 'keystore/emubackup-release.jks' || '' }}
+          KEYSTORE: ${{ steps.signing.outputs.available == 'true' && 'keystore/emubackup-release.jks' || '' }}
           STOREPASS: ${{ secrets.RELEASE_STOREPASS }}
           KEYPASS: ${{ secrets.RELEASE_KEYPASS }}
           KEYALIAS: ${{ secrets.RELEASE_KEYALIAS }}
@@ -63,6 +70,31 @@ jobs:
         with:
           name: emubackup-apk
           path: build/emubackup.apk
+
+      # A release with no APK on it is a link to a source tree. The point of tagging is that
+      # someone can install the thing without a toolchain.
+      - name: Attach the APK to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/emubackup.apk "emubackup-${{ github.ref_name }}.apk"
+          gh release create "${{ github.ref_name }}" \
+            --title "EmuBackup ${{ github.ref_name }}" \
+            --notes-file - "emubackup-${{ github.ref_name }}.apk" <<'NOTES'
+          Sideload the APK below. Android will warn about an unknown source; that is expected
+          for an app that cannot be on the Play Store, because it needs all-files access to
+          read save folders owned by other apps.
+
+          This build carries **no Google credentials**, by a rule in the workflow rather than by
+          convention. Backups go to a folder on the device until you point them somewhere else.
+          For Google Drive, create your own OAuth client and paste it into the app; the steps are
+          on the setup screen and in `docs/DRIVE_SETUP.md`.
+
+          It is signed with a throwaway key generated during the build, so it is not upgradeable
+          in place from a differently-signed build. Uninstall first if you hit a signature
+          mismatch.
+          NOTES
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
