@@ -49,12 +49,13 @@ App-private saves work too, through Shizuku, and are verified on hardware: backu
 and permissions matching what the emulator itself writes. Restoring *into* app-private
 storage still asks for confirmation, because it is the most invasive thing the app does.
 
-One real limitation: apps that write their saves mode `600` cannot be read even with
-Shizuku, because it provides the `shell` identity rather than root. DuckStation does this.
-Those files are listed in each backup's manifest and reported after a run, never skipped
-silently.
+One real limitation: some apps put their saves out of reach of `shell`, which is the identity
+Shizuku provides. DuckStation writes mode `600`; Amethyst group-owns its worlds itself. Only
+root would read those, and the app does not pretend otherwise — the files are listed in each
+backup's manifest and named after a run, never skipped silently.
 
-Still to come: Google Drive, scheduled backups, and retention.
+Google Drive works, over the raw REST API with a `drive.file` scope that can only see the app's
+own files. Still to come: scheduled backups and retention.
 
 ## Design
 
@@ -98,9 +99,19 @@ folders are owned by other apps at arbitrary paths, which scoped storage cannot 
 permission also makes Play Store distribution impractical, which is fine — this is a
 sideloaded APK.
 
-**Shizuku is optional.** Without it you still get every save in shared storage, which on my
-device is 700 of the 730 MB. With it you additionally get Dolphin, DuckStation, legacy
-Citra, Vita3K, aPS3e and GTA SA. Shizuku must be re-activated after each reboot, so the app
+**Shizuku is optional, and it has a ceiling.** Without it you still get every save in shared
+storage, which on my device is 700 of the 730 MB. With it you additionally get Dolphin, legacy
+Citra, Vita3K, aPS3e, GTA SA and Clone Hero.
+
+You do **not** get DuckStation. It writes its memory cards and save states mode `600`, so only
+their owner can read them, and Shizuku grants the `shell` identity rather than root. Minecraft
+worlds under Amethyst are group-owned by the app rather than by `ext_data_rw`, which blocks them
+the same way. Measured counts for every app-private target are in
+[docs/PROVENANCE.md](docs/PROVENANCE.md).
+
+EmuBackup does not paper over this. Unreadable files are listed by name in each manifest's
+`skipped` array and named on screen when a run finishes, so an incomplete backup says so instead
+of looking like a complete one. Shizuku must also be re-activated after each reboot, and the app
 tells you when app-private saves are going stale.
 
 ## Credits

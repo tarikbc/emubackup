@@ -99,15 +99,47 @@ archives sit inside target roots and are correctly excluded by filename.
 ## App-private storage is not uniformly readable, even with Shizuku (2026-09-16)
 
 Shizuku provides the `shell` identity, which is a member of group `ext_data_rw`. Whether a
-given file under `Android/data` can be read therefore depends on the mode the owning app
-wrote it with:
+given file under `Android/data` can be read therefore depends on two things the owning app
+controls: the mode, and the group the file ends up with.
 
-    Dolphin      -rw-rw----  u0_a132 ext_data_rw   readable: group bits are set
-    DuckStation  -rw-------  u0_a133 ext_data_rw   unreadable: owner only
+    Dolphin      -rw-rw----  u0_a132 ext_data_rw   readable: group is ext_data_rw, group bits set
+    DuckStation  -rw-------  u0_a133 ext_data_rw   unreadable: right group, but owner-only mode
+    Amethyst     -rw-rw----  u0_a151 u0_a151       unreadable: right mode, but the app's own group
 
-So DuckStation's memory cards cannot be backed up on a non-rooted device by any means
-available here. Root would work; `shell` cannot. Minecraft Java worlds under Amethyst show
-the same pattern for `level.dat` and `session.lock` while the game holds them.
+Both failures are silent from the app's point of view — `open()` simply returns `EACCES` —
+and neither can be fixed without root.
+
+The second row is the one that surprised me. `ext_data_rw` on a new file is the FUSE
+default, so most emulators inherit it; DuckStation overrides the mode. The third row is
+worse, because no mode would help: those files are group-owned by the app itself, so
+`shell` is not in any group that can reach them.
+
+Every app-private target on this device, counting files `shell` can actually open:
+
+    eden-profiles           6 of 6      citra-keys          5 of 5
+    eden-keys               3 of 3      dolphin-gc          7 of 7
+    citra-nand             10 of 10     dolphin-wii        21 of 21
+    citra-sdmc              9 of 9      vita3k-saves        3 of 3
+    aps3e-trophy           79 of 79     gtasa-saves         6 of 6
+    clonehero-scores       44 of 44     gtasa-settings      6 of 6
+
+    duckstation-memcards    0 of 1      amethyst-worlds    68 of 88
+    duckstation-states      0 of 7
+
+DuckStation is the honest headline: **not one** of its memory cards or save states can be
+read on a non-rooted device, by Shizuku or by anything else short of root. The README said
+otherwise until this survey was run.
+
+Amethyst's 68 readable files are a measurement artefact and should not be taken as a win.
+Their ownership gives them away:
+
+    68  -rw-rw----  shell:ext_data_rw      pushed over adb when the device was set up
+    16  -rw-rw----  u0_a151:u0_a151        written by the game
+     4  -rw-------  u0_a151:u0_a151        written by the game
+
+Only the files this device happened to receive over `adb push` are readable. Everything
+Amethyst wrote itself is not, including `level.dat`, which a Minecraft world cannot be
+restored without. On a device set up normally, this target would read 0 of 88.
 
 This is a fact about the device, not a defect in the app, and it is reported as such: the
 affected files are listed in each manifest's `skipped` array and surfaced as problems after

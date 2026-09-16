@@ -209,11 +209,31 @@ public final class DriveApi {
         }
     }
 
+    /**
+     * The content type Drive will record for a backup file.
+     *
+     * <p>Drive believes whatever it is told here and never sniffs the bytes, so declaring
+     * everything as a zip made the manifest, the checksums and the restore notes download as
+     * unopenable archives. Getting this right is what keeps a backup recoverable by hand from
+     * drive.google.com, which {@code docs/FORMAT.md} promises.
+     */
+    static String mimeFor(String name) {
+        if (name == null) return "application/octet-stream";
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".zip")) return "application/zip";
+        if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".txt")) return "text/plain; charset=utf-8";
+        // SHA256SUMS carries no extension and is read by sha256sum -c, so it must stay text.
+        if (lower.endsWith("sha256sums")) return "text/plain; charset=utf-8";
+        return "application/octet-stream";
+    }
+
     private String beginSession(String parentId, String name, long total, Map<String, String> props)
             throws IOException {
         JSONObject body = new JSONObject();
         try {
             body.put("name", name);
+            body.put("mimeType", mimeFor(name));
             if (parentId != null) body.put("parents", new JSONArray().put(parentId));
             if (props != null && !props.isEmpty()) {
                 JSONObject p = new JSONObject();
@@ -226,7 +246,7 @@ public final class DriveApi {
 
         HttpURLConnection c = open(UPLOAD + "?uploadType=resumable&fields=id", "POST");
         c.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        c.setRequestProperty("X-Upload-Content-Type", "application/zip");
+        c.setRequestProperty("X-Upload-Content-Type", mimeFor(name));
         c.setRequestProperty("X-Upload-Content-Length", String.valueOf(total));
         c.setDoOutput(true);
         byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);

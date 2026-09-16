@@ -109,6 +109,21 @@ class DriveTest {
         assertTrue(q.contains("'parent123' in parents"));
     }
 
+    @Test
+    @DisplayName("every file in a version declares a content type Drive can serve")
+    void mimeTypes() {
+        assertEquals("application/zip", DriveApi.mimeFor("eden-saves.full.zip"));
+        assertEquals("application/json", DriveApi.mimeFor("manifest.json"));
+        assertEquals("application/json", DriveApi.mimeFor("index.json"));
+        assertEquals("text/plain; charset=utf-8", DriveApi.mimeFor("RESTORE.txt"));
+        // No extension, and it has to stay text or sha256sum -c cannot read a downloaded copy.
+        assertEquals("text/plain; charset=utf-8", DriveApi.mimeFor("SHA256SUMS"));
+        assertEquals("application/octet-stream", DriveApi.mimeFor("unexpected"));
+        assertEquals("application/octet-stream", DriveApi.mimeFor(null));
+        // Case cannot decide the type: Drive shows what it is told, whatever the shell wrote.
+        assertEquals("application/zip", DriveApi.mimeFor("EDEN-SAVES.FULL.ZIP"));
+    }
+
     @Test void archiveNamesMapBackToTargets() {
         assertEquals("eden-saves", DriveSink.targetOf("eden-saves.full.zip"));
         assertEquals("ps2-states", DriveSink.targetOf("ps2-states.inc.zip"));

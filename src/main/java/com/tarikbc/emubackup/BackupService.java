@@ -24,6 +24,9 @@ import java.util.concurrent.Executors;
  */
 public class BackupService extends Service {
 
+    /** How many problem lines the finished screen names before summarising the rest. */
+    private static final int PROBLEMS_SHOWN = 6;
+
     public interface Listener {
         void onProgress(Progress p);
         void onFinished(String summary, boolean failed);
@@ -124,7 +127,13 @@ public class BackupService extends Service {
             } else {
                 summary = r.versionId + " · " + Sizes.human(r.archivedBytes) + " written to "
                         + sink.describe();
-                if (!r.problems.isEmpty()) summary += "\n" + r.problems.size() + " problem(s)";
+                // A bare count is useless: it tells you something is wrong and nothing about
+                // what, and the list is gone once this screen closes. Name the targets, but
+                // cap the list so a bad run cannot bury the version id under thirty lines.
+                int shown = Math.min(r.problems.size(), PROBLEMS_SHOWN);
+                for (int i = 0; i < shown; i++) summary += "\n" + r.problems.get(i);
+                int rest = r.problems.size() - shown;
+                if (rest > 0) summary += "\nand " + rest + " more";
                 publish(Progress.of(Progress.Phase.DONE, summary));
             }
         } catch (Exception e) {
