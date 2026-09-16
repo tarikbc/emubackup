@@ -74,7 +74,8 @@ public class BackupJobService extends JobService {
                     .withDevice(appVersion(), android.os.Build.MODEL,
                             android.os.Build.VERSION.SDK_INT)
                     .withRetention(settings.retention())
-                    .run(null, "scheduled", startedAt, new BackupRunner.Listener() {
+                    .run(settings.selectedTargets(session.registry), "scheduled", startedAt,
+                            new BackupRunner.Listener() {
                         @Override public void onProgress(Progress p) { }
                         @Override public boolean isCancelled() { return stopped; }
                     });

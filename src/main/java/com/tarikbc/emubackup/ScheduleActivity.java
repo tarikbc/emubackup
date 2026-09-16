@@ -82,6 +82,20 @@ public class ScheduleActivity extends Activity {
         cond.addView(body("A full backup is hundreds of megabytes and a full scan is not free. "
                 + "Turning both off lets a backup run on mobile data, on battery."));
 
+        // --- what to include ---
+        LinearLayout what = card(s.includeStates || s.includeKeys);
+        what.addView(cardTitle("What to include"));
+        what.addView(body("Game saves are always included. These two are not, and the sizes are "
+                + "from the last scan of this device."));
+        row(what,
+                choice("Save states" + sizeSuffix(Category.STATE), s.includeStates,
+                        () -> set(s.withStates(!s.includeStates))),
+                choice("Emulator keys" + sizeSuffix(Category.KEY), s.includeKeys,
+                        () -> set(s.withKeys(!s.includeKeys))));
+        what.addView(body("Save states are large, tied to one emulator build, and recreated by "
+                + "playing. Keys are not save data and are not always yours to copy. Both are "
+                + "off until you say otherwise."));
+
         // --- retention ---
         LinearLayout keep = card(false);
         keep.addView(cardTitle("How many to keep"));
@@ -115,6 +129,18 @@ public class ScheduleActivity extends Activity {
             hist.addView(mono(recent(runs)));
             addButton(hist, "Share the full log", this::share);
         }
+    }
+
+    /**
+     * "  ·  496 MB" for a category with data, or nothing.
+     *
+     * <p>Read from the cached scan rather than rescanning: this screen should open instantly, and
+     * a stale size on a toggle is a smaller sin than a second of blank screen. Absent is better
+     * than wrong, so nothing is shown when there is no scan to quote.
+     */
+    private String sizeSuffix(Category category) {
+        long bytes = ScanSession.lastKnownBytes(category);
+        return bytes <= 0 ? "" : "\n" + Sizes.human(bytes);
     }
 
     private String recent(List<RunLog.Run> runs) {

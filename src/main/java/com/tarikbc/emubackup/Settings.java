@@ -46,11 +46,32 @@ public final class Settings {
 
     public final int keepVersions;
 
+    /**
+     * Include save states. Off by default because they are large, machine-specific, and easy to
+     * recreate by playing; on this device they are 496 MB against 289 MB of real saves.
+     */
+    public final boolean includeStates;
+
+    /**
+     * Include emulator keys. Off by default because they are not save data and, for some
+     * emulators, not the user's to redistribute. Backing them up is a deliberate choice.
+     */
+    public final boolean includeKeys;
+
     /** A ceiling on the store, or {@link RetentionPolicy#UNLIMITED}. */
     public final long budgetBytes;
 
     public Settings(Frequency frequency, boolean requiresCharging, boolean requiresUnmetered,
                     int keepVersions, long budgetBytes) {
+        this(frequency, requiresCharging, requiresUnmetered, keepVersions, budgetBytes,
+                false, false);
+    }
+
+    public Settings(Frequency frequency, boolean requiresCharging, boolean requiresUnmetered,
+                    int keepVersions, long budgetBytes,
+                    boolean includeStates, boolean includeKeys) {
+        this.includeStates = includeStates;
+        this.includeKeys = includeKeys;
         this.frequency = frequency == null ? Frequency.OFF : frequency;
         this.requiresCharging = requiresCharging;
         this.requiresUnmetered = requiresUnmetered;
@@ -62,27 +83,60 @@ public final class Settings {
     }
 
     public static Settings defaults() {
-        return new Settings(Frequency.OFF, true, true, DEFAULT_KEEP, RetentionPolicy.UNLIMITED);
+        return new Settings(Frequency.OFF, true, true, DEFAULT_KEEP, RetentionPolicy.UNLIMITED,
+                false, false);
+    }
+
+    public Settings withStates(boolean b) {
+        return new Settings(frequency, requiresCharging, requiresUnmetered, keepVersions,
+                budgetBytes, b, includeKeys);
+    }
+
+    public Settings withKeys(boolean b) {
+        return new Settings(frequency, requiresCharging, requiresUnmetered, keepVersions,
+                budgetBytes, includeStates, b);
+    }
+
+    /**
+     * The target ids a run should cover, or null for "whatever the registry enables by default".
+     *
+     * <p>Null rather than an explicit list when nothing is opted in, so the registry stays the
+     * single source of truth for defaults and this method cannot drift from it.
+     */
+    public java.util.Collection<String> selectedTargets(TargetRegistry registry) {
+        if (!includeStates && !includeKeys) return null;
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        for (Target t : registry.defaultEnabledTargets()) ids.add(t.id);
+        for (Target t : registry.allTargets()) {
+            if (includeStates && t.category == Category.STATE) ids.add(t.id);
+            if (includeKeys && t.category == Category.KEY) ids.add(t.id);
+        }
+        return ids;
     }
 
     public Settings withFrequency(Frequency f) {
-        return new Settings(f, requiresCharging, requiresUnmetered, keepVersions, budgetBytes);
+        return new Settings(f, requiresCharging, requiresUnmetered, keepVersions, budgetBytes,
+                includeStates, includeKeys);
     }
 
     public Settings withCharging(boolean b) {
-        return new Settings(frequency, b, requiresUnmetered, keepVersions, budgetBytes);
+        return new Settings(frequency, b, requiresUnmetered, keepVersions, budgetBytes,
+                includeStates, includeKeys);
     }
 
     public Settings withUnmetered(boolean b) {
-        return new Settings(frequency, requiresCharging, b, keepVersions, budgetBytes);
+        return new Settings(frequency, requiresCharging, b, keepVersions, budgetBytes,
+                includeStates, includeKeys);
     }
 
     public Settings withKeep(int n) {
-        return new Settings(frequency, requiresCharging, requiresUnmetered, n, budgetBytes);
+        return new Settings(frequency, requiresCharging, requiresUnmetered, n, budgetBytes,
+                includeStates, includeKeys);
     }
 
     public Settings withBudget(long bytes) {
-        return new Settings(frequency, requiresCharging, requiresUnmetered, keepVersions, bytes);
+        return new Settings(frequency, requiresCharging, requiresUnmetered, keepVersions, bytes,
+                includeStates, includeKeys);
     }
 
     public boolean scheduled() {

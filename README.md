@@ -146,6 +146,17 @@ failure with that reason rather than disappearing.
 retrying quietly forever is worse than no backup, because you believe you are covered. Every run,
 manual or scheduled, is in a log on that screen, shareable as plain text.
 
+## What is included
+
+Game saves, always. Two things are not, and both are one tap on the Automatic backups screen:
+
+- **Save states** — 496 MB against 289 MB of real saves on my device. Large, tied to one emulator
+  build, and recreated by playing.
+- **Emulator keys** — not save data, and not always yours to copy.
+
+The screen shows what each would cost on *your* device, from the last scan, so the choice is made
+against a number rather than a guess.
+
 ## Checking a backup is still good
 
 Writing a backup and reporting success says the bytes left the device. It does not say they are

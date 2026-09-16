@@ -27,6 +27,16 @@ public final class ScanSession {
 
     private final Map<String, TargetScan> byTarget = new LinkedHashMap<>();
 
+    /**
+     * Per-category totals from the most recent scan in this process.
+     *
+     * <p>So a screen can quote a size without rescanning. Deliberately not persisted: a stale
+     * number that survives a reboot is worse than no number, and every screen that shows one is
+     * one tap from the scan that would produce a fresh one.
+     */
+    private static final Map<Category, Long> LAST_BYTES =
+            java.util.Collections.synchronizedMap(new java.util.EnumMap<>(Category.class));
+
     private ScanSession(TargetRegistry registry, Capabilities caps, List<TargetScan> scans,
                         String registryError, ShizukuGate.Status shizuku) {
         this.registry = registry;
@@ -64,7 +74,15 @@ public final class ScanSession {
         for (Emulator e : reg.emulators()) {
             out.addAll(engine.scanAll(e, e.targets));
         }
-        return new ScanSession(reg, caps, out, null, shizuku);
+        ScanSession session = new ScanSession(reg, caps, out, null, shizuku);
+        for (Category c : Category.values()) LAST_BYTES.put(c, session.bytesOf(c));
+        return session;
+    }
+
+    /** What the last scan found for a category, or 0 when nothing has been scanned yet. */
+    public static long lastKnownBytes(Category category) {
+        Long v = LAST_BYTES.get(category);
+        return v == null ? 0L : v;
     }
 
     /**

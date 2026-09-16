@@ -118,7 +118,9 @@ public class BackupService extends Service {
                     .withDevice(appVersion(), android.os.Build.MODEL, android.os.Build.VERSION.SDK_INT)
                     .withRetention(Prefs.settings(this).retention());
 
-            BackupRunner.Result r = runner.run(null, "manual", System.currentTimeMillis(),
+            BackupRunner.Result r = runner.run(
+                    Prefs.settings(this).selectedTargets(session.registry),
+                    "manual", System.currentTimeMillis(),
                     new BackupRunner.Listener() {
                         @Override public void onProgress(Progress p) { publish(p); }
                         @Override public boolean isCancelled() { return cancelRequested; }

@@ -160,8 +160,11 @@ public class MainActivity extends Activity {
                     .append(", ").append(s.registry.emulators().size()).append(" emulators, ")
                     .append(s.registry.allTargets().size()).append(" targets\n");
             b.append("saves       ").append(Sizes.human(s.bytesOf(Category.SAVE))).append('\n');
-            b.append("states      ").append(Sizes.human(s.bytesOf(Category.STATE))).append(" (opt-in)\n");
-            b.append("keys        ").append(Sizes.human(s.bytesOf(Category.KEY))).append(" (opt-in)\n");
+            Settings set = Prefs.settings(this);
+            b.append("states      ").append(Sizes.human(s.bytesOf(Category.STATE)))
+                    .append(set.includeStates ? " (included)\n" : " (not included)\n");
+            b.append("keys        ").append(Sizes.human(s.bytesOf(Category.KEY)))
+                    .append(set.includeKeys ? " (included)\n" : " (not included)\n");
             for (String w : s.registry.warnings()) b.append("warning     ").append(w).append('\n');
         }
         for (TargetScan p : s.problems()) {

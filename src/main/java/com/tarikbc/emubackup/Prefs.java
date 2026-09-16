@@ -17,6 +17,8 @@ public final class Prefs {
     private static final String K_UNMETERED = "requires_unmetered";
     private static final String K_KEEP = "keep_versions";
     private static final String K_BUDGET = "budget_bytes";
+    private static final String K_STATES = "include_states";
+    private static final String K_KEYS = "include_keys";
     private static final String K_LOG = "run_log";
 
     private Prefs() {}
@@ -29,7 +31,9 @@ public final class Prefs {
                 p.getBoolean(K_CHARGING, d.requiresCharging),
                 p.getBoolean(K_UNMETERED, d.requiresUnmetered),
                 p.getInt(K_KEEP, d.keepVersions),
-                p.getLong(K_BUDGET, d.budgetBytes));
+                p.getLong(K_BUDGET, d.budgetBytes),
+                p.getBoolean(K_STATES, d.includeStates),
+                p.getBoolean(K_KEYS, d.includeKeys));
     }
 
     /** Stores the settings and brings the scheduled job into line with them. */
@@ -40,6 +44,8 @@ public final class Prefs {
                 .putBoolean(K_UNMETERED, s.requiresUnmetered)
                 .putInt(K_KEEP, s.keepVersions)
                 .putLong(K_BUDGET, s.budgetBytes)
+                .putBoolean(K_STATES, s.includeStates)
+                .putBoolean(K_KEYS, s.includeKeys)
                 // commit, not apply: this is a deliberate choice the person made once, and it
                 // decides whether backups happen at all.
                 .commit();
