@@ -19,7 +19,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # packages: '' is load-bearing. Left at its default the action installs the obsolete
+      # "tools" package, which no longer exists in the SDK repository, and the whole step dies
+      # with "Failed to find package 'tools'" before any of this project's code is touched.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: Install SDK packages
         run: sdkmanager "platforms;android-34" "build-tools;35.0.0"
