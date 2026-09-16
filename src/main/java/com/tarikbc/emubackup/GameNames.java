@@ -37,6 +37,14 @@ public final class GameNames {
         return v != null ? v : id;
     }
 
+    /** A copy with one more name, for what a save itself says about its game. */
+    public GameNames with(IdKind kind, String id, String name) {
+        if (id == null || name == null || name.isEmpty()) return this;
+        Map<String, String> copy = new HashMap<>(names);
+        copy.put(key(kind, id), name);
+        return new GameNames(copy);
+    }
+
     public boolean isKnown(IdKind kind, String id) {
         return id != null && names.containsKey(key(kind, id));
     }
@@ -69,6 +77,10 @@ public final class GameNames {
         public Builder derivedFrom(RomFilenameParser.Rom rom) {
             for (Map.Entry<IdKind, String> e : rom.ids.entrySet()) {
                 derived(e.getKey(), e.getValue(), rom.displayName);
+                // A Wii NAND save is keyed by the first four characters of the disc id.
+                if (e.getKey() == IdKind.GC_GAME_ID && e.getValue().length() == 6) {
+                    derived(IdKind.GC_GAME_ID, e.getValue().substring(0, 4), rom.displayName);
+                }
             }
             // Also registered under its own cleaned name, so platforms keyed by basename resolve.
             derived(IdKind.ROM_BASENAME, rom.displayName, rom.displayName);

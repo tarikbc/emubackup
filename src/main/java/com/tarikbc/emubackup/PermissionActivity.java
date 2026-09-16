@@ -1,133 +1,182 @@
 package com.tarikbc.emubackup;
 
-import android.app.Activity;
 import android.content.Intent;
-import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import android.view.View;
-import android.widget.Button;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Two independent cards: the grant everything depends on, and the optional one.
+ * Storage access and extra access, each with its state in plain words and one button.
  *
- * <p>Built programmatically because it is a short linear screen whose content depends on live
- * state; an XML layout plus a binder would be more moving parts than the screen has.
- *
- * <p>{@code DESIGN.md} section 8: a locked capability is shown with its reason and its unlock
- * path, never hidden, and the Shizuku card never blocks the rest of the app.
+ * <p>Storage access is the permission without which nothing can be read. Extra access is
+ * Shizuku, which reaches the folders only an emulator can see; it is optional, stops at every
+ * reboot, and its state is re-checked on every resume because it can change underneath the
+ * app. A missing grant never silently no-ops: each state names its way in. DESIGN.md §8.
  */
-public class PermissionActivity extends Activity {
+public class PermissionActivity extends GamepadActivity {
 
-    private LinearLayout root;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
+    private FrameLayout root;
+    private LinearLayout col;
+    private LinearLayout shizukuCard;
+    private TextView shizukuState, shizukuText;
+    private TextView shizukuButton;
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
-        ScrollView sv = new ScrollView(this);
-        sv.setBackgroundColor(color(R.color.ink_black));
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(28), dp(20), dp(28));
-        sv.addView(root);
-        setContentView(sv);
+        root = new FrameLayout(this);
+        setContentView(root);
     }
 
     @Override protected void onResume() {
         super.onResume();
-        // Rebuilt on every resume: the user may have just returned from the Settings screen
-        // where they granted or revoked the very permission this screen is about.
-        root.removeAllViews();
-        root.addView(title(getString(R.string.permissions_title)));
-
-        boolean allFiles = Permissions.hasAllFiles();
-        LinearLayout a = addCard(allFiles ? R.color.ok : R.color.warn, dp(20));
-        a.addView(cardTitle(allFiles
-                ? getString(R.string.all_files_granted)
-                : "Shared-storage saves — required"));
-        a.addView(body(getString(R.string.all_files_why)));
-        if (!allFiles) {
-            Button b = new Button(this);
-            b.setText(R.string.grant_all_files);
-            b.setTextColor(color(R.color.ink_black));
-            b.setBackgroundTintList(ColorStateList.valueOf(color(R.color.accent)));
-            b.setOnClickListener(v -> Permissions.requestAllFiles(this));
-            a.addView(b, marginTop(dp(14)));
-        }
-
-        LinearLayout s = addCard(R.color.text_tertiary, dp(12));
-        s.addView(cardTitle(getString(R.string.shizuku_title)));
-        s.addView(body(getString(R.string.shizuku_why)));
-        TextView status = body("Checking…");
-        s.addView(status);
-
-        LinearLayout again = addCard(R.color.text_tertiary, dp(12));
-        again.addView(cardTitle("First-run walkthrough"));
-        again.addView(body("The guided setup that runs on a new install. Nothing is reset by "
-                + "opening it, and it can be left at any point."));
-        addAction(again, "Show it again", () -> {
-            Onboarding.reset(this);
-            startActivity(new Intent(this, OnboardingActivity.class));
-        });
-
-        // Connecting blocks, so it happens off the main thread and the card fills in when it
-        // resolves. Re-run on every resume because Shizuku dies on reboot and can be revoked.
+        render();
         io.execute(() -> {
             final ShizukuGate.Status st = ShizukuGate.connect(this);
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                showShizuku(s, status, st);
+                showShizuku(st);
             });
         });
     }
 
-    private void showShizuku(LinearLayout card, TextView status, ShizukuGate.Status st) {
+    @Override public void onConfigurationChanged(Configuration cfg) {
+        super.onConfigurationChanged(cfg);
+        render();
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        io.shutdownNow();
+    }
+
+    private LinearLayout.LayoutParams top(int dp) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = Ui.dp(this, dp);
+        return lp;
+    }
+
+    private void render() {
+        root.removeAllViews();
+        boolean tall = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+        ScrollView sv = new ScrollView(this);
+        col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        int gx = Ui.dp(this, tall ? 20 : 32), gy = Ui.dp(this, 20);
+        col.setPadding(gx, gy, gx, gy);
+        sv.addView(col);
+        root.addView(sv);
+        col.addView(Ui.bold(this, "Storage and extra access", 24, R.color.text_primary));
+
+        // ---- storage ----
+        boolean allFiles = Permissions.hasAllFiles();
+        LinearLayout a = card();
+        TextView at = Ui.bold(this, "Storage access", 18, R.color.text_primary);
+        Ui.iconStart(at, R.drawable.ic_folder, R.color.text_secondary, 20, 10);
+        at.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        a.addView(at);
+        a.addView(state(allFiles ? "Granted" : "Not granted", allFiles ? R.color.ok : R.color.danger));
+        a.addView(Ui.text(this, "Emulator saves live in folders that belong to other apps. Android "
+                + "hides those unless you allow EmuBackup to read all files. It reads only the "
+                + "save folders it knows about, listed under Settings, and never your games.",
+                15, R.color.text_secondary), top(8));
+        if (!allFiles) {
+            TextView b = Ui.primaryButton(this, "Grant storage access");
+            b.setFocusedByDefault(true);
+            b.setOnClickListener(v -> Permissions.requestAllFiles(this));
+            LinearLayout.LayoutParams lp = top(14);
+            lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+            a.addView(b, lp);
+            focusByDefault(b);
+        }
+
+        // ---- shizuku ----
+        shizukuCard = card();
+        TextView st = Ui.bold(this, "Extra access, with Shizuku", 18, R.color.text_primary);
+        Ui.iconStart(st, R.drawable.ic_lock, R.color.text_secondary, 20, 10);
+        st.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        shizukuCard.addView(st);
+        shizukuState = state("Checking\u2026", R.color.text_secondary);
+        shizukuCard.addView(shizukuState);
+        shizukuText = Ui.text(this, "Some emulators keep saves in folders only they can see: "
+                + "GameCube, Wii, PlayStation, 3DS, and Eden's profiles. Shizuku is a free app "
+                + "that opens them without rooting the device. It is started once over a USB "
+                + "cable or wireless debugging, and it stops at every reboot; EmuBackup says "
+                + "when that matters. Everything else is backed up either way.",
+                15, R.color.text_secondary);
+        shizukuCard.addView(shizukuText, top(8));
+        shizukuButton = null;
+    }
+
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setBackground(Ui.card(this, R.color.surface));
+        int p = Ui.dp(this, 20);
+        c.setPadding(p, p, p, p);
+        col.addView(c, top(14));
+        return c;
+    }
+
+    private TextView state(String text, int colorRes) {
+        TextView t = Ui.text(this, text, 17, colorRes);
+        t.setLayoutParams(top(6));
+        return t;
+    }
+
+    private void button(String label, Runnable go, boolean primary) {
+        if (shizukuButton != null) shizukuCard.removeView(shizukuButton);
+        shizukuButton = primary ? Ui.primaryButton(this, label) : Ui.secondaryButton(this, label);
+        shizukuButton.setOnClickListener(v -> go.run());
+        LinearLayout.LayoutParams lp = top(14);
+        lp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        shizukuCard.addView(shizukuButton, lp);
+        if (Permissions.hasAllFiles()) {
+            shizukuButton.setFocusedByDefault(true);
+            focusByDefault(shizukuButton);
+        }
+    }
+
+    private void showShizuku(ShizukuGate.Status st) {
         switch (st.state) {
             case READY:
-                status.setText("Ready, running as " + st.identity()
-                        + ". App-private saves are covered.");
-                status.setTextColor(color(R.color.ok));
+                shizukuState.setText("Ready \u00b7 running as " + st.identity() + ", server v" + st.serverVersion);
+                shizukuState.setTextColor(Ui.color(this, R.color.ok));
                 return;
             case NOT_INSTALLED:
-                status.setText("Shizuku is not installed. It is a separate free app that grants "
-                        + "this access without root.");
-                addAction(card, "Get Shizuku", () -> openUrl("https://shizuku.rikka.app/"));
+                shizukuState.setText("Not set up");
+                shizukuState.setTextColor(Ui.color(this, R.color.text_secondary));
+                button("Get Shizuku", () -> openUrl("https://shizuku.rikka.app/"), true);
                 return;
             case NOT_RUNNING:
-                status.setText("Shizuku is installed but not running. Start it from the Shizuku "
-                        + "app. It has to be started again after every reboot.");
-                addAction(card, "Open Shizuku", this::openShizuku);
+                shizukuState.setText("Installed but not running");
+                shizukuState.setTextColor(Ui.color(this, R.color.warn));
+                button("Open Shizuku", this::openShizuku, true);
                 return;
             case NEEDS_PERMISSION:
-                status.setText("Shizuku is running but has not granted access to EmuBackup yet.");
-                addAction(card, "Ask for access", ShizukuGate::requestPermission);
+                shizukuState.setText("Running; EmuBackup is not allowed yet");
+                shizukuState.setTextColor(Ui.color(this, R.color.warn));
+                button("Ask for access", ShizukuGate::requestPermission, true);
                 return;
             case PROBE_FAILED:
             default:
                 // Reported rather than retried silently. A privileged path that appears to work
                 // and reads nothing produces an empty backup that looks successful.
-                status.setText(st.detail == null ? "Shizuku could not be used on this device."
-                                                 : st.detail);
-                status.setTextColor(color(R.color.danger));
-                addAction(card, "Try again", this::recreate);
+                shizukuState.setText(st.detail == null ? "Could not be used on this device" : st.detail);
+                shizukuState.setTextColor(Ui.color(this, R.color.danger));
+                button("Try again", this::recreate, false);
         }
-    }
-
-    private void addAction(LinearLayout card, String label, Runnable onClick) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setTextColor(color(R.color.text_primary));
-        b.setBackgroundTintList(ColorStateList.valueOf(color(R.color.surface_high)));
-        b.setOnClickListener(v -> onClick.run());
-        card.addView(b, marginTop(dp(12)));
     }
 
     private void openShizuku() {
@@ -143,67 +192,4 @@ public class PermissionActivity extends Activity {
             // No browser. Nothing useful to fall back to, and the card already explains the step.
         }
     }
-
-    @Override protected void onDestroy() {
-        super.onDestroy();
-        io.shutdownNow();
-    }
-
-    /** Adds a card to the screen and returns the column to put its content in. */
-    private LinearLayout addCard(int hueRes, int topMargin) {
-        LinearLayout outer = new LinearLayout(this);
-        outer.setOrientation(LinearLayout.HORIZONTAL);
-        outer.setBackgroundColor(color(R.color.surface));
-
-        View hue = new View(this);
-        hue.setBackgroundColor(color(hueRes));
-        outer.addView(hue, new LinearLayout.LayoutParams(dp(3), LinearLayout.LayoutParams.MATCH_PARENT));
-
-        LinearLayout inner = new LinearLayout(this);
-        inner.setOrientation(LinearLayout.VERTICAL);
-        inner.setPadding(dp(16), dp(16), dp(16), dp(16));
-        outer.addView(inner, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        root.addView(outer, marginTop(topMargin));
-        return inner;
-    }
-
-    private TextView title(String t) {
-        TextView v = new TextView(this);
-        v.setText(t);
-        v.setTextColor(color(R.color.text_primary));
-        v.setTextSize(22);
-        v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD);
-        return v;
-    }
-
-    private TextView cardTitle(String t) {
-        TextView v = new TextView(this);
-        v.setText(t);
-        v.setTextColor(color(R.color.text_primary));
-        v.setTextSize(17);
-        return v;
-    }
-
-    private TextView body(String t) {
-        TextView v = new TextView(this);
-        v.setText(t);
-        v.setTextColor(color(R.color.text_secondary));
-        v.setTextSize(14);
-        v.setPadding(0, dp(8), 0, 0);
-        v.setLineSpacing(dp(3), 1f);
-        return v;
-    }
-
-    private LinearLayout.LayoutParams marginTop(int px) {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        p.topMargin = px;
-        return p;
-    }
-
-    private int dp(int v) { return (int) (getResources().getDisplayMetrics().density * v); }
-
-    private int color(int res) { return getResources().getColor(res, null); }
 }

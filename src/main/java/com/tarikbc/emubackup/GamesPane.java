@@ -220,10 +220,20 @@ final class GamesPane extends Pane {
     private static String displayName(GameHistory.Entry e, Target t, GameNames names, String badge) {
         if (e.group.isWholeTarget()) return t.label;
         if (e.group.isUngrouped()) return "Other files in " + t.label;
-        if (!names.isKnown(e.group.gameIdKind, e.group.gameKey)) {
-            return Consoles.name(badge) + " title " + e.group.gameKey;
+        String key = e.group.gameKey;
+        IdKind kind = e.group.gameIdKind;
+        if ("dolphin-wii".equals(t.id)) {
+            // The NAND keys a save by the hex of its game id; system titles are not games.
+            String id = TitleIds.wiiNandGameId(key);
+            if (id == null) return "Wii system data \u00b7 " + key;
+            if (names.isKnown(IdKind.GC_GAME_ID, id)) return names.lookup(IdKind.GC_GAME_ID, id);
+            return "Wii title " + id;
         }
-        return names.lookup(e.group.gameIdKind, e.group.gameKey);
+        if (kind == IdKind.N3DS_TITLE_ID && !names.isKnown(kind, key) && TitleIds.is3dsBuiltIn(key)) {
+            return "3DS built-in app \u00b7 " + key.substring(8);
+        }
+        if (!names.isKnown(kind, key)) return Consoles.name(badge) + " title " + key;
+        return names.lookup(kind, key);
     }
 
     private void renderChips() {

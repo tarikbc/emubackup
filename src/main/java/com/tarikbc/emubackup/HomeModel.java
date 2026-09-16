@@ -143,10 +143,37 @@ final class HomeModel {
             } catch (Exception unreadable) {
                 // Raw ids are still correct, just less friendly.
             }
+            names = sfoTitles(names, s, games);
         }
         return new HomeModel(Safety.assess(in), in, s, vs.error, games,
                 in.where == Safety.Where.FOLDER ? Destination.folderLabel(ctx) : null,
                 vs.list, names, selected);
+    }
+
+    /**
+     * A PSP save carries its game's title in PARAM.SFO. Read for each PSP group on the device,
+     * so those games are named even when the disc is not in the library.
+     */
+    private static GameNames sfoTitles(GameNames names, ScanSession s, Map<String, GameHistory.Entry> games) {
+        if (s == null || !s.ok()) return names;
+        for (GameHistory.Entry e : games.values()) {
+            if (!e.onDevice || e.group.gameIdKind != IdKind.PSP_GAME_ID || e.group.gameKey == null) continue;
+            if (names.isKnown(IdKind.PSP_GAME_ID, e.group.gameKey)) continue;
+            TargetScan ts = s.scanOf(e.targetId);
+            if (ts == null || ts.resolvedRoot == null) continue;
+            for (FileStat f : e.group.files) {
+                if (!f.path.endsWith("/PARAM.SFO")) continue;
+                try {
+                    byte[] b = java.nio.file.Files.readAllBytes(new java.io.File(ts.resolvedRoot, f.path).toPath());
+                    String title = Sfo.parse(b).get("TITLE");
+                    if (title != null && !title.isEmpty()) names = names.with(IdKind.PSP_GAME_ID, e.group.gameKey, title);
+                } catch (Exception ignored) {
+                    // Unreadable metadata leaves the id as it was.
+                }
+                break;
+            }
+        }
+        return names;
     }
 
     private static Map<String, Manifest> manifests(Context ctx, List<IndexEntry> index) {
