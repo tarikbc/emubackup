@@ -64,6 +64,7 @@ public abstract class GamepadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         legend = new LegendBar(this);
+        legend.setOnButton(this::pressButton);
         shell.addView(legend, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 
@@ -143,6 +144,30 @@ public abstract class GamepadActivity extends Activity {
             default:
                 return super.dispatchKeyEvent(e);
         }
+    }
+
+    /**
+     * A tap on a legend chip presses that button: the same two key events the controller
+     * sends, through the same dispatch, so a tap can never do anything a press cannot.
+     */
+    private void pressButton(String button) {
+        int code;
+        switch (button) {
+            case "A": code = KeyEvent.KEYCODE_BUTTON_A; break;
+            case "B": code = KeyEvent.KEYCODE_BUTTON_B; break;
+            case "X": code = KeyEvent.KEYCODE_BUTTON_X; break;
+            case "Y": code = KeyEvent.KEYCODE_BUTTON_Y; break;
+            case "L1": code = KeyEvent.KEYCODE_BUTTON_L1; break;
+            case "R1": code = KeyEvent.KEYCODE_BUTTON_R1; break;
+            case "L2": code = KeyEvent.KEYCODE_BUTTON_L2; break;
+            case "R2": code = KeyEvent.KEYCODE_BUTTON_R2; break;
+            default: return;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        // A tapped "A" acts on the focused thing; with nothing focused there is nothing to
+        // press, and the framework's own focus rules take over on the DPAD_CENTER.
+        dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0));
+        dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0));
     }
 
     private static KeyEvent remap(KeyEvent e, int keyCode) {

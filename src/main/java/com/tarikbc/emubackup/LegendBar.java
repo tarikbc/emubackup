@@ -26,13 +26,48 @@ public final class LegendBar extends LinearLayout {
         setPadding(p, 0, p, 0);
     }
 
+    /** Called with a button name ("A", "R1", ...) when its chip or meaning is tapped. */
+    public interface OnButton {
+        void press(String button);
+    }
+
+    private OnButton onButton;
+
+    public void setOnButton(OnButton l) {
+        onButton = l;
+    }
+
     /** Pairs of button label and meaning: "A", "Select", "B", "Back", ... */
     public void set(String... pairs) {
         removeAllViews();
         for (int i = 0; i + 1 < pairs.length; i += 2) {
-            addView(chip(pairs[i]));
-            addView(label(pairs[i + 1]));
+            // A combined chip such as "L1/R1" is two chips, each pressing its own side.
+            LinearLayout item = new LinearLayout(getContext());
+            item.setOrientation(HORIZONTAL);
+            item.setGravity(Gravity.CENTER_VERTICAL);
+            String[] buttons = pairs[i].split("/");
+            for (String b : buttons) {
+                TextView chip = chip(b);
+                chip.setOnClickListener(v -> press(b));
+                item.addView(chip);
+            }
+            TextView label = label(pairs[i + 1]);
+            // The meaning presses the last chip of the group: "Sections" goes forward.
+            label.setOnClickListener(v -> press(buttons[buttons.length - 1]));
+            item.addView(label);
+            // The group's own padding presses the same as its meaning, so no tap falls between.
+            item.setOnClickListener(v -> press(buttons[buttons.length - 1]));
+            item.setBackgroundResource(R.drawable.rail_row);
+            int p = dp(4);
+            item.setPadding(p, p, p, p);
+            LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            lp.rightMargin = dp(16);
+            addView(item, lp);
         }
+    }
+
+    private void press(String button) {
+        if (onButton != null) onButton.press(button);
     }
 
     private TextView chip(String button) {
@@ -71,7 +106,7 @@ public final class LegendBar extends LinearLayout {
         t.setTextColor(getResources().getColor(R.color.text_secondary, null));
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-        lp.rightMargin = dp(28);
+        lp.rightMargin = dp(8);
         t.setLayoutParams(lp);
         return t;
     }

@@ -200,8 +200,9 @@ Build from these; do not hand-roll a button.
   never appears without that word somewhere on screen.
 - **Legend bar.** `LegendBar`. Chips for buttons (A, B, X, Y, L1/R1) with a meaning each; the
   face buttons in the controller's own colours (§2) with white letters, as printed on the
-  Thor; L1/R1 on `surface_high`. Shown only while a gamepad is attached. Every screen sets
-  it; it is never stale.
+  Thor; L1/R1 on `surface_high`. Every chip is a button: tapping it presses that button
+  through the same key path, so a hand on the screen can do anything a hand on the pad can.
+  Shown only while a gamepad is attached. Every screen sets it; it is never stale.
 - **Primary button.** `Ui.primaryButton`. Accent fill, ink text, 17sp bold, 56 dp. One per
   screen. Focused: a light 3 dp ring. Pressed: `accent_deep`.
 - **Secondary button.** `Ui.secondaryButton`. `surface` fill, primary text, same size. For
