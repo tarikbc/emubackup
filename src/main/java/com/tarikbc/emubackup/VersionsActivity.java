@@ -45,10 +45,13 @@ public class VersionsActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         io.execute(() -> {
+            // Both happen off the main thread: listing a Drive store is a network round trip,
+            // and even the local one touches disk.
             final List<IndexEntry> vs = RestoreSession.versions(this);
+            final String where = RestoreSession.describeStore(this);
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                render(vs);
+                render(vs, where);
             });
         });
     }
@@ -58,17 +61,20 @@ public class VersionsActivity extends Activity {
         io.shutdownNow();
     }
 
-    private void render(List<IndexEntry> versions) {
+    private void render(List<IndexEntry> versions, String where) {
         List<IndexEntry> newestFirst = new ArrayList<>(versions);
         Collections.reverse(newestFirst);
 
         if (newestFirst.isEmpty()) {
-            subtitle.setText(R.string.no_versions);
+            // Naming the store even when it is empty is the point: this screen silently showed
+            // the local folder while backups were going to Drive, and said nothing about where
+            // it had looked.
+            subtitle.setText(getString(R.string.no_versions) + "\n" + where);
         } else {
             long total = 0;
             for (IndexEntry e : newestFirst) total += e.bytes;
             subtitle.setText(newestFirst.size() + " backups · " + Sizes.human(total)
-                    + " · " + RestoreSession.storeDir().getAbsolutePath());
+                    + " · " + where);
         }
         list.setAdapter(new Adapter(newestFirst));
     }

@@ -1,8 +1,6 @@
 package com.tarikbc.emubackup;
 
 import android.content.Context;
-import android.os.Environment;
-import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,18 +25,19 @@ public final class RestoreSession {
         this.error = error;
     }
 
-    public static File storeDir() {
-        return new File(Environment.getExternalStorageDirectory(), "EmuBackup");
-    }
-
-    public static LocalFolderSink sink() throws java.io.IOException {
-        return new LocalFolderSink(storeDir().getAbsolutePath());
+    /** Where the active store keeps its versions, for display. */
+    public static String describeStore(Context ctx) {
+        try {
+            return Stores.active(ctx).describe();
+        } catch (Exception e) {
+            return Stores.localRoot().getAbsolutePath();
+        }
     }
 
     /** The versions present, newest last. */
     public static List<IndexEntry> versions(Context ctx) {
         try {
-            LocalFolderSink s = sink();
+            BackupSink s = Stores.active(ctx);
             if (s.hasRootFile(BackupIndex.FILE_NAME)) {
                 return BackupIndex.fromJson(new String(s.readRootFile(BackupIndex.FILE_NAME),
                         java.nio.charset.StandardCharsets.UTF_8)).versions();
@@ -62,7 +61,7 @@ public final class RestoreSession {
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                 OAuthConfig.isConfigured());
         try {
-            LocalFolderSink s = sink();
+            BackupSink s = Stores.active(ctx);
             Manifest m;
             try (InputStream in = s.openFile(versionId, "manifest.json")) {
                 m = Manifest.fromJson(BackupRunner.readAll(in));

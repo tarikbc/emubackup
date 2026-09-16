@@ -158,7 +158,7 @@ public class BackupService extends Service {
         boolean failed = false;
         try {
             if (request == null) throw new IllegalStateException("no restore was requested");
-            LocalFolderSink sink = RestoreSession.sink();
+            BackupSink sink = Stores.active(this);
             Manifest m;
             try (java.io.InputStream in = sink.openFile(request.versionId, "manifest.json")) {
                 m = Manifest.fromJson(BackupRunner.readAll(in));
@@ -211,25 +211,17 @@ public class BackupService extends Service {
     }
 
     /**
-     * Google Drive when it is linked, a local folder otherwise.
-     *
-     * <p>The local folder is never merely a fallback: it is the guarantee that a backup outlives
-     * this app and any account, and it is what the whole test suite exercises.
+     * The store this run writes to, resolved by {@link Stores} so that a backup written here can
+     * always be read back by the Backups screen and the restore path.
      */
     private BackupSink chooseSink() throws java.io.IOException {
-        DriveTokens tokens = new DriveTokens(this);
-        if (tokens.linked()) {
-            File staging = new File(getExternalFilesDir(null), "staging");
-            return new DriveSink(new DriveApi(tokens), staging, new DriveApi.ProgressListener() {
-                @Override public void onProgress(long sent, long total) {
-                    publish(new Progress(Progress.Phase.ARCHIVING, null, "Uploading", 0, 0,
-                            null, 0, 0, sent, total, null));
-                }
-                @Override public boolean isCancelled() { return cancelRequested; }
-            });
-        }
-        return new LocalFolderSink(
-                new File(Environment.getExternalStorageDirectory(), "EmuBackup").getAbsolutePath());
+        return Stores.active(this, new DriveApi.ProgressListener() {
+            @Override public void onProgress(long sent, long total) {
+                publish(new Progress(Progress.Phase.ARCHIVING, null, "Uploading", 0, 0,
+                        null, 0, 0, sent, total, null));
+            }
+            @Override public boolean isCancelled() { return cancelRequested; }
+        });
     }
 
     private void publish(Progress p) {
