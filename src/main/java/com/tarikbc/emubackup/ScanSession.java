@@ -79,7 +79,11 @@ public final class ScanSession {
             // someone which file to go and fix.
             String why = describe(e) + (ov.json == null ? ""
                     : "  (an override at " + OVERRIDE_PATH + " is being applied)");
-            return new ScanSession(null, caps, new ArrayList<>(), why, shizuku, ov.status);
+            // "applied" would be a lie here: the file was read and the registry then rejected
+            // what was in it, so nothing it says is in force.
+            String status = ov.json == null ? ov.status
+                    : ov.status.replace("applied,", "read but rejected,");
+            return new ScanSession(null, caps, new ArrayList<>(), why, shizuku, status);
         }
 
         PathResolver resolver = new PathResolver(Environment.getExternalStorageDirectory().getAbsolutePath());
