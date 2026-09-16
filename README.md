@@ -39,6 +39,9 @@ tenth of a percent. Small, scattered, and irreplaceable.
   to apps: `MANAGE_EXTERNAL_STORAGE` does not cover it and SAF cannot target it. With
   optional [Shizuku](https://shizuku.rikka.app/), EmuBackup reaches it anyway — which is
   where every GameCube, Wii, PS1 and legacy-Citra save lives. No root required.
+- **Made for a handheld.** Every screen works with a controller or by touch, in landscape
+  or portrait, and Home gives one plain answer: are your saves safe. See
+  [docs/DESIGN.md](docs/DESIGN.md) and [docs/INPUT.md](docs/INPUT.md).
 - **Backs up per game and per profile.** Restore one game for one profile, not everything.
 - **Versioned, incremental.** Only changed files are uploaded.
 - **Google Drive or a local folder.**
