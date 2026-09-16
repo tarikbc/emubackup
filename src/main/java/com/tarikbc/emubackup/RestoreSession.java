@@ -34,13 +34,41 @@ public final class RestoreSession {
         }
     }
 
-    /** The versions present, newest last. */
+    /** The versions in a store, or the reason they could not be listed. */
+    public static final class Versions {
+        /** Newest last. Empty when the store is empty or unreachable; check {@link #error}. */
+        public final List<IndexEntry> list;
+        /** Null when the store was read. Otherwise why it could not be, in plain words. */
+        public final String error;
+
+        Versions(List<IndexEntry> list, String error) {
+            this.list = list;
+            this.error = error;
+        }
+
+        public boolean reachable() {
+            return error == null;
+        }
+    }
+
+    /** The versions present, newest last; the old shape, kept for callers that cannot show an error. */
     public static List<IndexEntry> versions(Context ctx) {
+        return listVersions(ctx).list;
+    }
+
+    /**
+     * Lists versions and says when it could not.
+     *
+     * <p>The previous version of this swallowed every exception into an empty list, so a Drive
+     * outage rendered as "No backups yet here". Empty and unreachable are different facts and a
+     * person deciding whether to trust their backups needs to know which one they are looking at.
+     */
+    public static Versions listVersions(Context ctx) {
         try {
             BackupSink s = Stores.active(ctx);
             if (s.hasRootFile(BackupIndex.FILE_NAME)) {
-                return BackupIndex.fromJson(new String(s.readRootFile(BackupIndex.FILE_NAME),
-                        java.nio.charset.StandardCharsets.UTF_8)).versions();
+                return new Versions(BackupIndex.fromJson(new String(s.readRootFile(BackupIndex.FILE_NAME),
+                        java.nio.charset.StandardCharsets.UTF_8)).versions(), null);
             }
             List<Manifest> all = new ArrayList<>();
             for (String v : s.listVersions()) {
@@ -50,13 +78,25 @@ public final class RestoreSession {
                 } catch (Exception ignored) {
                 }
             }
-            return BackupIndex.rebuildFrom(all).versions();
+            return new Versions(BackupIndex.rebuildFrom(all).versions(), null);
         } catch (Exception e) {
-            return new ArrayList<>();
+            String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            return new Versions(new ArrayList<>(), why);
         }
     }
 
     public static RestoreSession load(Context ctx, String versionId) {
+        return load(ctx, versionId, null);
+    }
+
+    /**
+     * @param filter target id to the relative paths to consider, or null for everything. A
+     *               target absent from the map is skipped entirely. This is what a per-game
+     *               restore is: {@code RestorePlanner} already takes a selection, and the
+     *               pre-restore snapshot already scopes itself to what will be overwritten.
+     */
+    public static RestoreSession load(Context ctx, String versionId,
+                                      java.util.Map<String, java.util.Set<String>> filter) {
         ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                 DriveClient.of(ctx).configured());
@@ -73,6 +113,8 @@ public final class RestoreSession {
 
             for (ManifestTarget mt : m.targets) {
                 if (mt.files.isEmpty()) continue;
+                if (filter != null && !filter.containsKey(mt.id)) continue;
+                final java.util.Set<String> selected = filter == null ? null : filter.get(mt.id);
                 String label = reg.hasTarget(mt.id) ? reg.target(mt.id).label : mt.id;
                 boolean writable = caps.canRead(mt.tier);
 
@@ -91,7 +133,7 @@ public final class RestoreSession {
                     }
                 }
                 final String root = mt.root;
-                plans.add(RestorePlanner.plan(mt, label, onDevice, null, rel -> {
+                plans.add(RestorePlanner.plan(mt, label, onDevice, selected, rel -> {
                     try (InputStream in = reader.open(root, rel)) {
                         return Hashes.sha256(in);
                     }

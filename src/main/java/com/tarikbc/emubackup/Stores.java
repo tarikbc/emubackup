@@ -51,6 +51,21 @@ public final class Stores {
         }
     }
 
+    /**
+     * A short stable name for the active store, for anything cached per store.
+     *
+     * <p>Version ids are per-store counters, so {@code v0003} in Drive and {@code v0003} in a
+     * picked folder are unrelated. Anything keyed by version id alone would mix them.
+     */
+    public static String key(Context ctx) {
+        switch (Destination.effective(ctx)) {
+            case DRIVE: return "drive";
+            case FOLDER: return "folder-" + Integer.toHexString(
+                    String.valueOf(Destination.folderUri(ctx)).hashCode());
+            default: return "device";
+        }
+    }
+
     /** The active store, for callers that only read. */
     public static BackupSink active(Context ctx) throws IOException {
         return active(ctx, null);

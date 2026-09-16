@@ -39,6 +39,8 @@ public final class RestoreRunner {
 
     public static final class Result {
         public final String snapshotVersionId;
+        /** The safety copy's manifest, so a cache can keep it without a round trip. Null when none. */
+        public final Manifest snapshotManifest;
         public final int filesWritten;
         public final long bytesWritten;
         public final boolean cancelled;
@@ -46,9 +48,11 @@ public final class RestoreRunner {
         public final List<String> corrupt;
         public final List<String> failures;
 
-        Result(String snapshotVersionId, int filesWritten, long bytesWritten, boolean cancelled,
+        Result(String snapshotVersionId, Manifest snapshotManifest, int filesWritten,
+               long bytesWritten, boolean cancelled,
                List<String> missing, List<String> corrupt, List<String> failures) {
             this.snapshotVersionId = snapshotVersionId;
+            this.snapshotManifest = snapshotManifest;
             this.filesWritten = filesWritten;
             this.bytesWritten = bytesWritten;
             this.cancelled = cancelled;
@@ -87,7 +91,8 @@ public final class RestoreRunner {
             throws IOException {
 
         List<String> failures = new ArrayList<>();
-        String snapshotId = snapshot(manifest, plans, nowMs, listener);
+        Manifest snapshotManifest = snapshot(manifest, plans, nowMs, listener);
+        String snapshotId = snapshotManifest == null ? null : snapshotManifest.version;
 
         int written = 0;
         long bytes = 0;
@@ -155,7 +160,7 @@ public final class RestoreRunner {
 
         listener.onProgress(Progress.of(cancelled ? Progress.Phase.CANCELLED : Progress.Phase.DONE,
                 written + " files restored"));
-        return new Result(snapshotId, written, bytes, cancelled, missing, corrupt, failures);
+        return new Result(snapshotId, snapshotManifest, written, bytes, cancelled, missing, corrupt, failures);
     }
 
     /**
@@ -164,7 +169,7 @@ public final class RestoreRunner {
      * @return the snapshot's version id, or null when nothing would be overwritten
      * @throws IOException if the snapshot cannot be written, which aborts the restore
      */
-    private String snapshot(Manifest manifest, List<RestorePlan> plans, long nowMs, Listener listener)
+    private Manifest snapshot(Manifest manifest, List<RestorePlan> plans, long nowMs, Listener listener)
             throws IOException {
 
         Map<String, List<RestoreItem>> perTarget = new LinkedHashMap<>();
@@ -223,7 +228,7 @@ public final class RestoreRunner {
         sink.writeRootFile(BackupIndex.FILE_NAME, updated.toJson().getBytes(StandardCharsets.UTF_8));
         sink.writeRootFile("RESTORE.txt",
                 RestoreScript.storeReadme(updated.versions()).getBytes(StandardCharsets.UTF_8));
-        return vid;
+        return snap;
     }
 
     private BackupIndex loadIndex() {

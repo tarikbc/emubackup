@@ -93,6 +93,7 @@ public class BackupJobService extends JobService {
                 if (detail.length() > 0) detail.append('\n');
                 detail.append(p);
             }
+            new ManifestCache(this).put(r.manifest);
             record(true, r.versionId, r.archivedBytes, detail.toString());
             return false;
 

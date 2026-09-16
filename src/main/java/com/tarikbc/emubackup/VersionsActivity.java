@@ -47,7 +47,7 @@ public class VersionsActivity extends Activity {
         io.execute(() -> {
             // Both happen off the main thread: listing a Drive store is a network round trip,
             // and even the local one touches disk.
-            final List<IndexEntry> vs = RestoreSession.versions(this);
+            final RestoreSession.Versions vs = RestoreSession.listVersions(this);
             final String where = RestoreSession.describeStore(this);
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
@@ -61,11 +61,15 @@ public class VersionsActivity extends Activity {
         io.shutdownNow();
     }
 
-    private void render(List<IndexEntry> versions, String where) {
-        List<IndexEntry> newestFirst = new ArrayList<>(versions);
+    private void render(RestoreSession.Versions versions, String where) {
+        List<IndexEntry> newestFirst = new ArrayList<>(versions.list);
         Collections.reverse(newestFirst);
 
-        if (newestFirst.isEmpty()) {
+        if (!versions.reachable()) {
+            // Unreachable is not empty. "No backups yet" over a Drive outage tells someone
+            // their backups are gone when they are merely out of reach.
+            subtitle.setText(where + " could not be reached.\n" + versions.error);
+        } else if (newestFirst.isEmpty()) {
             // Naming the store even when it is empty is the point: this screen silently showed
             // the local folder while backups were going to Drive, and said nothing about where
             // it had looked.

@@ -132,6 +132,7 @@ public class BackupService extends Service {
             } else {
                 versionId = r.versionId;
                 bytes = r.archivedBytes;
+                new ManifestCache(this).put(r.manifest);
                 summary = r.versionId + " · " + Sizes.human(r.archivedBytes) + " written to "
                         + sink.describe();
                 // A bare count is useless: it tells you something is wrong and nothing about
@@ -200,6 +201,7 @@ public class BackupService extends Service {
                     .append(r.filesWritten).append(" files (").append(Sizes.human(r.bytesWritten)).append(")");
             if (r.snapshotVersionId != null) {
                 b.append("\nWhat was replaced is saved in ").append(r.snapshotVersionId);
+                new ManifestCache(this).put(r.snapshotManifest);
             }
             if (!r.corrupt.isEmpty()) b.append("\n").append(r.corrupt.size())
                     .append(" file(s) failed verification and were left alone");
@@ -217,6 +219,9 @@ public class BackupService extends Service {
 
         PENDING_RESTORE = null;
         Notifications.result(this, failed ? "Restore failed" : "Restore finished", summary);
+        // A restore is a run. A history that omits them reads as a complete record and is not.
+        Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "restore", !failed,
+                request == null ? null : request.versionId, 0, summary));
         Listener l = LISTENER;
         if (l != null) l.onFinished(summary, failed);
 
