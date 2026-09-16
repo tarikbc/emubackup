@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The cartridge at 24dp, for the rail. Tinted at runtime. DESIGN.md §3. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M6,2h12a2,2 0 0 1 2,2v12l-4,6H8L4,16V4a2,2 0 0 1 2,-2z M8,5v5h8V5z M9,15v4h2v-4z M13,15v4h2v-4z"
+        android:fillType="evenOdd" />
+</vector>

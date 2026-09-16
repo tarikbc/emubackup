@@ -27,14 +27,25 @@ import java.util.Locale;
 final class SettingsPane extends Pane {
 
     enum Section {
-        WHERE("Where backups go"), WHEN("When backups run"), WHAT("What to include"),
-        KEEP("How much to keep"), ACCESS("Storage and extra access"), ACCOUNT("Google account"),
-        NOTIFY("Notifications"), ADVANCED("Advanced");
+        WHERE("Where backups go", R.drawable.ic_cloud), WHEN("When backups run", R.drawable.ic_calendar),
+        WHAT("What to include", R.drawable.ic_layers), KEEP("How much to keep", R.drawable.ic_archive),
+        ACCESS("Storage access", "Storage and extra access", R.drawable.ic_lock), ACCOUNT("Google account", R.drawable.ic_key),
+        NOTIFY("Notifications", R.drawable.ic_bell), ADVANCED("Advanced", R.drawable.ic_settings);
 
+        /** The list row, short enough for one line beside its icon. */
+        final String label;
+        /** The page heading; may be longer. */
         final String title;
+        final int icon;
 
-        Section(String title) {
+        Section(String title, int icon) {
+            this(title, title, icon);
+        }
+
+        Section(String label, String title, int icon) {
+            this.label = label;
             this.title = title;
+            this.icon = icon;
         }
     }
 
@@ -96,11 +107,12 @@ final class SettingsPane extends Pane {
         slp.topMargin = Ui.dp(c, 12);
         col.addView(sections, slp);
         for (Section s : Section.values()) {
-            TextView row = Ui.text(c, s.title, 17, R.color.text_primary);
+            TextView row = Ui.text(c, s.label, 17, R.color.text_primary);
             row.setBackgroundResource(R.drawable.rail_row);
             row.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), 0);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setMinHeight(Ui.dp(c, 52));
+            Ui.iconStart(row, s.icon, R.color.text_secondary, 20, 12);
             row.setFocusable(true);
             row.setClickable(true);
             row.setOnClickListener(v -> select(s, true));
@@ -127,6 +139,7 @@ final class SettingsPane extends Pane {
             boolean on = s == selected;
             r.setTextColor(Ui.color(host, on ? R.color.accent : R.color.text_primary));
             r.setTypeface(on ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+            Ui.iconStart(r, s.icon, on ? R.color.accent : R.color.text_secondary, 20, 12);
         }
     }
 

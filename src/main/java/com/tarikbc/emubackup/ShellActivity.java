@@ -35,6 +35,8 @@ public class ShellActivity extends GamepadActivity {
     enum Dest { HOME, GAMES, BACKUPS, SETTINGS }
 
     private static final String[] LABELS = { "Home", "Games", "Backups", "Settings" };
+    private static final int[] ICONS = { R.drawable.ic_house, R.drawable.ic_gamepad_2,
+            R.drawable.ic_archive, R.drawable.ic_settings };
     private static final int REQ_NOTIFICATIONS = 7;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -43,8 +45,9 @@ public class ShellActivity extends GamepadActivity {
     private boolean tall;
     private FrameLayout paneHost;
     private final TextView[] placeRows = new TextView[Dest.values().length];
+    private final android.graphics.drawable.Drawable[] tabIcons =
+            new android.graphics.drawable.Drawable[Dest.values().length];
     private View dot;
-    private TextView dotWord;
     private final Pane[] panes = new Pane[Dest.values().length];
     private Dest current = Dest.HOME;
     private HomeModel model;
@@ -114,31 +117,29 @@ public class ShellActivity extends GamepadActivity {
         rail.setBackgroundColor(Ui.color(this, R.color.surface_low));
         rail.setPadding(Ui.dp(this, 10), Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 16));
 
-        TextView name = Ui.bold(this, "EmuBackup", 13, R.color.text_tertiary);
+        TextView name = Ui.bold(this, "EmuBackup", 13, R.color.text_secondary);
         name.setPadding(Ui.dp(this, 16), 0, 0, Ui.dp(this, 14));
+        name.setGravity(Gravity.CENTER_VERTICAL);
+        Ui.iconStart(name, R.drawable.ic_mark, R.color.accent, 18, 8);
         rail.addView(name);
 
         for (Dest d : Dest.values()) {
             TextView row = placeRow(d, 16);
-            row.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 8), 0);
+            row.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 12), 0);
+            Ui.iconStart(row, ICONS[d.ordinal()], R.color.text_secondary, 22, 12);
+            if (d == Dest.HOME) {
+                // The status rides on Home as a dot. The word is on Home itself.
+                dot = Ui.dot(this, R.color.text_tertiary, 8);
+                android.graphics.drawable.Drawable dd = dot.getBackground();
+                dd.setBounds(0, 0, Ui.dp(this, 8), Ui.dp(this, 8));
+                row.setCompoundDrawablesRelative(row.getCompoundDrawablesRelative()[0], null, dd, null);
+            }
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52));
             lp.topMargin = Ui.dp(this, 2);
             rail.addView(row, lp);
         }
 
-        rail.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
-
-        LinearLayout status = new LinearLayout(this);
-        status.setOrientation(LinearLayout.HORIZONTAL);
-        status.setGravity(Gravity.CENTER_VERTICAL);
-        status.setPadding(Ui.dp(this, 16), 0, 0, 0);
-        dot = Ui.dot(this, R.color.text_tertiary, 10);
-        status.addView(dot);
-        dotWord = Ui.text(this, "Checking", 13, R.color.text_secondary);
-        dotWord.setPadding(Ui.dp(this, 8), 0, 0, 0);
-        status.addView(dotWord);
-        rail.addView(status);
         return rail;
     }
 
@@ -149,24 +150,26 @@ public class ShellActivity extends GamepadActivity {
         bar.setBackgroundColor(Ui.color(this, R.color.surface_low));
         bar.setPadding(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
         for (Dest d : Dest.values()) {
-            TextView row = placeRow(d, 13);
+            TextView row = placeRow(d, 12);
             row.setGravity(Gravity.CENTER);
-            row.setPadding(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
+            row.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 6));
+            // Icon above the label, the phone idiom. The status dot rides on Home's right.
+            android.graphics.drawable.Drawable ic = getDrawable(ICONS[d.ordinal()]).mutate();
+            ic.setBounds(0, 0, Ui.dp(this, 22), Ui.dp(this, 22));
+            android.graphics.drawable.Drawable dd = null;
             if (d == Dest.HOME) {
-                // A compound drawable hugs the view's edge, not the text, so the tab wraps its
-                // text and is centred in its slot instead.
                 dot = Ui.dot(this, R.color.text_tertiary, 8);
-                android.graphics.drawable.Drawable dd = dot.getBackground();
+                dd = dot.getBackground();
                 dd.setBounds(0, 0, Ui.dp(this, 8), Ui.dp(this, 8));
-                row.setCompoundDrawablePadding(Ui.dp(this, 6));
-                row.setCompoundDrawables(dd, null, null, null);
             }
+            row.setCompoundDrawablePadding(Ui.dp(this, 4));
+            row.setCompoundDrawables(null, ic, dd, null);
+            tabIcons[d.ordinal()] = ic;
             FrameLayout slot = new FrameLayout(this);
             slot.addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    Ui.dp(this, 48), Gravity.CENTER));
+                    Ui.dp(this, 56), Gravity.CENTER));
             bar.addView(slot, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
-        dotWord = null;
         return bar;
     }
 
@@ -212,8 +215,16 @@ public class ShellActivity extends GamepadActivity {
         for (Dest x : Dest.values()) {
             TextView row = placeRows[x.ordinal()];
             boolean on = x == d;
-            row.setTextColor(Ui.color(this, on ? R.color.accent : R.color.text_primary));
+            int hue = on ? R.color.accent : R.color.text_primary;
+            row.setTextColor(Ui.color(this, hue));
             row.setTypeface(on ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
+            if (tall) {
+                if (tabIcons[x.ordinal()] != null) tabIcons[x.ordinal()].setTint(Ui.color(this, hue));
+            } else {
+                android.graphics.drawable.Drawable keep = row.getCompoundDrawablesRelative()[2];
+                Ui.iconStart(row, ICONS[x.ordinal()], on ? R.color.accent : R.color.text_secondary, 22, 12);
+                row.setCompoundDrawablesRelative(row.getCompoundDrawablesRelative()[0], null, keep, null);
+            }
         }
         paneHost.removeAllViews();
         Pane p = pane();
@@ -253,7 +264,6 @@ public class ShellActivity extends GamepadActivity {
 
     /** Rescans and re-reads the store. Every resume does this; a retry button does it too. */
     void reload() {
-        if (dotWord != null) dotWord.setText("Checking");
         io.execute(() -> {
             final HomeModel m = HomeModel.load(this);
             ui.post(() -> {
@@ -276,10 +286,6 @@ public class ShellActivity extends GamepadActivity {
     private void renderStatus(HomeModel m) {
         int hue = hueOf(m.report.state);
         ((android.graphics.drawable.GradientDrawable) dot.getBackground()).setColor(Ui.color(this, hue));
-        if (dotWord != null) {
-            dotWord.setText(wordOf(m.report.state));
-            dotWord.setTextColor(Ui.color(this, hue));
-        }
     }
 
     @Override protected void onDestroy() {

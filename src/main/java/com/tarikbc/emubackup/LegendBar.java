@@ -38,20 +38,31 @@ public final class LegendBar extends LinearLayout {
     private TextView chip(String button) {
         TextView t = new TextView(getContext());
         t.setText(button);
-        t.setTextColor(getResources().getColor(R.color.ink_black, null));
+        t.setTextColor(getResources().getColor(R.color.text_primary, null));
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         t.setGravity(Gravity.CENTER);
         t.setMinWidth(dp(26));
         t.setPadding(dp(6), dp(2), dp(6), dp(2));
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(getResources().getColor(R.color.text_secondary, null));
+        bg.setColor(getResources().getColor(chipColor(button), null));
         bg.setCornerRadius(dp(13));
         t.setBackground(bg);
         LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, dp(26));
         lp.rightMargin = dp(8);
         t.setLayoutParams(lp);
         return t;
+    }
+
+    /** The face buttons in the colours printed on the controller; everything else neutral. */
+    private static int chipColor(String button) {
+        switch (button) {
+            case "A": return R.color.btn_a;
+            case "B": return R.color.btn_b;
+            case "X": return R.color.btn_x;
+            case "Y": return R.color.btn_y;
+            default: return R.color.surface_high;
+        }
     }
 
     private TextView label(String meaning) {

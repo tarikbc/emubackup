@@ -19,4 +19,11 @@
     <color name="ok">#5BD68A</color>
     <color name="warn">#E3B341</color>
     <color name="danger">#E5534B</color>
+
+    <!-- The four face buttons, in the colours printed on the Thor's controller. Used only on
+         the legend chips and anywhere a button is named, never as a status. -->
+    <color name="btn_a">#E5534B</color>
+    <color name="btn_b">#E3B341</color>
+    <color name="btn_x">#4A9BE8</color>
+    <color name="btn_y">#5BD68A</color>
 </resources>

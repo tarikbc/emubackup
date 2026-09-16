@@ -23,6 +23,7 @@ class ConsolesTest {
                 assertNotEquals("?", badge, e.id + "/" + t.id + " has no badge");
                 // Being in the chip order is what proves a name exists; PSP is its own name.
                 assertTrue(Consoles.rank(badge) < 15, badge + " is not in the chip order");
+                assertNotEquals(0xFF9AA4B2, Consoles.tint(badge), badge + " has no tint of its own");
             }
         }
     }

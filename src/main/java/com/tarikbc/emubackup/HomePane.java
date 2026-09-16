@@ -36,6 +36,7 @@ final class HomePane extends Pane {
         left.setClipChildren(false);
         left.setClipToPadding(false);
         stateWord = Ui.bold(c, "", 14, R.color.text_secondary);
+        stateWord.setGravity(Gravity.CENTER_VERTICAL);
         left.addView(stateWord);
         headline = Ui.bold(c, "Checking your saves\u2026", tall ? 26 : 30, R.color.text_primary);
         left.addView(headline, top(c, 8));
@@ -68,10 +69,10 @@ final class HomePane extends Pane {
         card.setBackground(Ui.card(c, R.color.surface));
         int p = Ui.dp(c, 20);
         card.setPadding(p, p, p, p);
-        lastBackup = fact(card, "Last backup");
-        where = fact(card, "Kept in");
-        next = fact(card, "Next backup");
-        games = fact(card, "Games found");
+        lastBackup = fact(card, "Last backup", R.drawable.ic_clock);
+        where = fact(card, "Kept in", R.drawable.ic_cloud);
+        next = fact(card, "Next backup", R.drawable.ic_calendar);
+        games = fact(card, "Games found", R.drawable.ic_gamepad_2);
 
         if (tall) {
             ScrollView sv = new ScrollView(c);
@@ -105,9 +106,12 @@ final class HomePane extends Pane {
         return root;
     }
 
-    private TextView fact(LinearLayout card, String label) {
+    private TextView fact(LinearLayout card, String label, int icon) {
         LinearLayout.LayoutParams lp = top(host, card.getChildCount() == 0 ? 0 : 14);
-        card.addView(Ui.caption(host, label), lp);
+        TextView cap = Ui.caption(host, label);
+        cap.setGravity(Gravity.CENTER_VERTICAL);
+        Ui.iconStart(cap, icon, R.color.text_tertiary, 14, 6);
+        card.addView(cap, lp);
         TextView v = Ui.text(host, "\u2026", 17, R.color.text_primary);
         card.addView(v, top(host, 2));
         return v;
@@ -135,6 +139,15 @@ final class HomePane extends Pane {
         int hue = ShellActivity.hueOf(r.state);
         stateWord.setText(ShellActivity.wordOf(r.state));
         stateWord.setTextColor(Ui.color(host, hue));
+        int glyph = r.state == Safety.State.SAFE ? R.drawable.ic_circle_check
+                : r.state == Safety.State.ATTENTION ? R.drawable.ic_triangle_alert
+                : r.state == Safety.State.PROBLEM ? R.drawable.ic_circle_x : R.drawable.ic_info;
+        Ui.iconStart(stateWord, glyph, hue, 16, 6);
+        int whereIcon = m.input.where == Safety.Where.DRIVE ? R.drawable.ic_cloud
+                : m.input.where == Safety.Where.FOLDER ? R.drawable.ic_folder : R.drawable.ic_smartphone;
+        Ui.iconStart((TextView) ((android.view.ViewGroup) where.getParent()).getChildAt(
+                ((android.view.ViewGroup) where.getParent()).indexOfChild(where) - 1),
+                whereIcon, R.color.text_tertiary, 14, 6);
         headline.setText(r.headline);
         detail.setText(r.detail);
         action.setText(r.actionLabel);

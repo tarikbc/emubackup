@@ -10,22 +10,23 @@ package com.tarikbc.emubackup;
 public final class Consoles {
 
     private static final String[][] TABLE = {
-        // badge, name, in the order the filter chips show them
-        { "SW", "Switch" },
-        { "GC", "GameCube" },
-        { "WII", "Wii" },
-        { "3DS", "3DS" },
-        { "DS", "DS" },
-        { "PS1", "PlayStation" },
-        { "PS2", "PlayStation 2" },
-        { "PS3", "PlayStation 3" },
-        { "PSP", "PSP" },
-        { "VITA", "PS Vita" },
-        { "DC", "Dreamcast" },
-        { "RA", "RetroArch" },
-        { "MC", "Minecraft" },
-        { "AND", "Android games" },
-        { "CH", "Clone Hero" },
+        // badge, name, tint (ARGB hex), in the order the filter chips show them. The tint is a
+        // nod to each console's own colour; the letters carry the meaning, never the tint alone.
+        { "SW", "Switch", "#FFE8453C" },
+        { "GC", "GameCube", "#FF8B7CD8" },
+        { "WII", "Wii", "#FF7FC4E8" },
+        { "3DS", "3DS", "#FFE57373" },
+        { "DS", "DS", "#FFB0BEC5" },
+        { "PS1", "PlayStation", "#FFB8B8B8" },
+        { "PS2", "PlayStation 2", "#FF4F7FD9" },
+        { "PS3", "PlayStation 3", "#FF6A8FE0" },
+        { "PSP", "PSP", "#FF5AA0E6" },
+        { "VITA", "PS Vita", "#FF6FB3EA" },
+        { "DC", "Dreamcast", "#FFF4A261" },
+        { "RA", "RetroArch", "#FF8FA3C0" },
+        { "MC", "Minecraft", "#FF6FBF4F" },
+        { "AND", "Android games", "#FFA4C639" },
+        { "CH", "Clone Hero", "#FFFF9F43" },
     };
 
     private Consoles() {}
@@ -57,6 +58,12 @@ public final class Consoles {
     public static String name(String badge) {
         for (String[] row : TABLE) if (row[0].equals(badge)) return row[1];
         return badge;
+    }
+
+    /** The console's tint as ARGB, for the badge; a neutral grey for an unknown badge. */
+    public static int tint(String badge) {
+        for (String[] row : TABLE) if (row[0].equals(badge)) return (int) Long.parseLong(row[2].substring(1), 16);
+        return 0xFF9AA4B2;
     }
 
     /** Position in the chip order; unknown badges sort last. */

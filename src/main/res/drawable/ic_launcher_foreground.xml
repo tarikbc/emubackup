@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The cartridge, inside the 66dp safe zone of a 108dp adaptive icon. DESIGN.md §3. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#4FC3A1"
+        android:pathData="M34,30h40a5,5 0 0 1 5,5v32l-10,15H39L29,67V35a5,5 0 0 1 5,-5z" />
+    <path android:fillColor="#14171C"
+        android:pathData="M41,40h26v13H41z" />
+    <path android:fillColor="#14171C"
+        android:pathData="M46,60h5v10h-5z M57,60h5v10h-5z" />
+</vector>

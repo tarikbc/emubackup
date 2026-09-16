@@ -303,6 +303,10 @@ final class GamesPane extends Pane {
         @Override public void onBindViewHolder(Holder h, int position) {
             Row r = shown.get(position);
             h.badge.setText(r.badge);
+            int tint = Consoles.tint(r.badge);
+            h.badge.setTextColor(tint);
+            ((android.graphics.drawable.GradientDrawable) h.badge.getBackground())
+                    .setColor((tint & 0x00FFFFFF) | 0x2E000000);
             h.name.setText(r.name);
             h.meta.setText(r.meta);
             h.status.setText(r.status);
@@ -343,7 +347,7 @@ final class GamesPane extends Pane {
         lp.bottomMargin = Ui.dp(c, 10);
         row.setLayoutParams(lp);
 
-        row.addView(badgeView(""));
+        row.addView(Ui.badge(c, "", 0xFF9AA4B2));
 
         LinearLayout mid = new LinearLayout(c);
         mid.setOrientation(LinearLayout.VERTICAL);
@@ -360,15 +364,6 @@ final class GamesPane extends Pane {
         slp.leftMargin = Ui.dp(c, 12);
         row.addView(status, slp);
         return row;
-    }
-
-    private TextView badgeView(String text) {
-        TextView b = Ui.bold(host, text, 12, R.color.text_secondary);
-        b.setBackground(Ui.card(host, R.color.surface_high));
-        b.setPadding(Ui.dp(host, 8), Ui.dp(host, 3), Ui.dp(host, 8), Ui.dp(host, 3));
-        b.setMinWidth(Ui.dp(host, 44));
-        b.setGravity(Gravity.CENTER);
-        return b;
     }
 
     // ---- game page ----
@@ -422,7 +417,7 @@ final class GamesPane extends Pane {
         LinearLayout head = new LinearLayout(c);
         head.setOrientation(LinearLayout.HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.addView(badgeView(r.badge));
+        head.addView(Ui.badge(c, r.badge, Consoles.tint(r.badge)));
         TextView name = Ui.bold(c, r.name, 24, R.color.text_primary);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         nlp.leftMargin = Ui.dp(c, 12);

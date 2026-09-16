@@ -158,7 +158,7 @@ final class BackupsPane extends Pane {
     private String checkedLine(IndexEntry e, long now) {
         VerifyMemory.Entry v = VerifyMemory.get(host, e.id);
         if (v == null) return "not checked yet";
-        return (v.ok ? "\u2713 checked " : "\u2717 problems found ") + Ago.format(v.atMs, now);
+        return (v.ok ? "checked " : "problems found ") + Ago.format(v.atMs, now);
     }
 
     private int checkedHue(IndexEntry e) {
@@ -182,6 +182,10 @@ final class BackupsPane extends Pane {
             h.meta.setText(meta);
             h.status.setText(checkedLine(e, now));
             h.status.setTextColor(Ui.color(host, checkedHue(e)));
+            VerifyMemory.Entry ve = VerifyMemory.get(host, e.id);
+            h.status.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+            Ui.iconStart(h.status, ve == null ? R.drawable.ic_circle_question_mark
+                    : ve.ok ? R.drawable.ic_shield_check : R.drawable.ic_triangle_alert, checkedHue(e), 16, 6);
             h.itemView.setOnClickListener(v -> openDetail(h.getBindingAdapterPosition()));
         }
 

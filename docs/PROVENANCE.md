@@ -219,3 +219,16 @@ out of scope.
 3. **The raw identifier**, shown monospaced with an affordance to name it.
 
 No third-party game database is bundled or consulted.
+
+## Icons
+
+The icons under `res/drawable/ic_*.xml` (except the launcher and `ic_mark`) are from
+[Lucide](https://lucide.dev), ISC licence, converted by `tools/vendor-icons.py`:
+
+    ISC License
+    Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather
+    (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+    Permission to use, copy, modify, and/or distribute this software for any purpose with or
+    without fee is hereby granted, provided that the above copyright notice and this
+    permission notice appear in all copies.
+

@@ -119,6 +119,42 @@ final class Ui {
         return fromKey ? v.requestFocusFromTouch() : v.requestFocus();
     }
 
+    /** A Lucide icon, tinted. Sizes: 16 beside a caption, 20 in a row, 22 on the rail. */
+    static android.widget.ImageView icon(Context c, int drawableRes, int colorRes, int sizeDp) {
+        android.widget.ImageView v = new android.widget.ImageView(c);
+        v.setImageResource(drawableRes);
+        v.setImageTintList(android.content.res.ColorStateList.valueOf(color(c, colorRes)));
+        v.setLayoutParams(new android.view.ViewGroup.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
+        return v;
+    }
+
+    /** A tinted icon as a compound drawable, sized to the text it sits beside. */
+    static void iconStart(TextView t, int drawableRes, int colorRes, int sizeDp, int gapDp) {
+        Context c = t.getContext();
+        android.graphics.drawable.Drawable d = c.getDrawable(drawableRes).mutate();
+        d.setTint(color(c, colorRes));
+        d.setBounds(0, 0, dp(c, sizeDp), dp(c, sizeDp));
+        t.setCompoundDrawablePadding(dp(c, gapDp));
+        t.setCompoundDrawablesRelative(d, null, null, null);
+    }
+
+    /** A console badge: the letters in the console's tint on a wash of the same tint. */
+    static TextView badge(Context c, String text, int argb) {
+        TextView b = new TextView(c);
+        b.setText(text);
+        b.setTypeface(Typeface.DEFAULT_BOLD);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        b.setTextColor(argb);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor((argb & 0x00FFFFFF) | 0x2E000000);
+        bg.setCornerRadius(dp(c, 14));
+        b.setBackground(bg);
+        b.setPadding(dp(c, 8), dp(c, 3), dp(c, 8), dp(c, 3));
+        b.setMinWidth(dp(c, 44));
+        b.setGravity(Gravity.CENTER);
+        return b;
+    }
+
     static View dot(Context c, int colorRes, int sizeDp) {
         View v = new View(c);
         GradientDrawable d = new GradientDrawable();

@@ -83,15 +83,32 @@ trio means *outcome*. The ramp means *depth*. Never use `ok` as an accent or `ac
 result. Amber has exactly two meanings, stale and costly-opt-in, and is never decorative.
 Grey (`text_tertiary`) is the fourth status: *cannot*, as in a folder the app cannot see into.
 
+**Two more places colour lives.** The four face buttons on the legend chips carry the colours
+printed on the Thor's controller, and only there: `btn_a` red `#E5534B`, `btn_b` yellow
+`#E3B341`, `btn_x` blue `#4A9BE8`, `btn_y` green `#5BD68A`. Console badges carry a tint per
+console (`Consoles.tint`: Switch red, GameCube violet, Wii light blue, PlayStation blues,
+Dreamcast orange, Minecraft green and so on), as the letters on a wash of the same tint at
+18% alpha. Neither is ever a status.
+
 Meaning is never carried by colour alone. Every dot has a word next to it ("Safe", "Needs you",
-"Problem", "Not set up"), every amber row says why.
+"Problem", "Not set up"), every amber row says why, every badge has its letters.
 
-## §3 Mark
+## §3 Mark and icons
 
-A cartridge outline: the physical object a battery save used to live in, which is exactly what
-the app preserves. Flat, two colours, no gradient, legible at 48 px. `res/drawable/ic_launcher.xml`.
-The same outline may appear at 24 dp as the app's own glyph in the rail. Nothing else is
-illustrated; consoles are named with text badges (§6), not logos.
+**The mark** is a cartridge outline: the physical object a battery save used to live in, which
+is exactly what the app preserves. Flat, two colours, no gradient, legible at 48 px. It ships
+as an adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`, accent on `surface_low`)
+and as `ic_mark` at 24 dp beside the name on the rail. Consoles are named with text badges
+(§6), not logos.
+
+**Icons** are [Lucide](https://lucide.dev) (ISC), vendored as vector drawables by
+`tools/vendor-icons.py`: 24 px grid, 2 px round stroke, tinted at runtime through
+`Ui.icon` / `Ui.iconStart`. Sizes: 14 dp beside a caption, 16 dp beside a status word, 20 dp
+in a row, 22 dp on the rail and tab bar. An icon never stands alone; it sits next to the word
+it illustrates. The set in use: house, gamepad-2, archive, settings, clock, cloud, folder,
+smartphone, calendar, shield-check, circle-check, triangle-alert, circle-x, info, circle-question-mark,
+lock, key, bell, layers, rotate-ccw, hard-drive, refresh-cw, share-2, file-down, list-checks,
+save. Add one with the script; do not draw one by hand.
 
 ## §4 Type and numbers
 
@@ -128,7 +145,8 @@ configuration change, without reloading anything.
     │ rail     │ pane                                         │
     │ 150 dp   │ master-detail inside where it fits           │
     │ 4 places │                                              │
-    │ ● status │                                              │
+    │ (dot on  │                                              │
+    │  Home)   │                                              │
     ├──────────┴──────────────────────────────────────────────┤
     │ legend bar, 40 dp, only while a gamepad is attached     │
     └─────────────────────────────────────────────────────────┘
@@ -145,8 +163,9 @@ configuration change, without reloading anything.
     │ Home · Games · Backups · Settings   56 dp tab bar │
     └──────────────────────────┘
 
-The rail and the tab bar are the same four places and the same status dot. Nothing exists in
-one form that does not exist in the other; the pane's content reflows, it does not change.
+The rail and the tab bar are the same four places, with the status dot on Home in both.
+Nothing exists in one form that does not exist in the other; the pane's content reflows, it
+does not change.
 
 **Grid.** 4 dp base. Spacing steps: 4, 8, 12, 16, 20, 24, 32. Pane gutter 32 dp wide, 20 dp
 tall. Card padding 20 dp. Row padding 18 dp horizontal, 12 dp vertical. Gap between rows
@@ -170,12 +189,16 @@ B returns to the list with focus on the row it left. Tall: the same, full width.
 Every component below exists in `Ui`, `SheetView`, `LegendBar` or the pane that owns it.
 Build from these; do not hand-roll a button.
 
-- **Rail item / tab.** Text, 16sp. Selected: accent, bold. Focused: `surface_high` fill
-  with the ring. At rest: no fill (the rail is a strip, not a stack of buttons).
-- **Status dot + word.** 10 dp circle in the status hue with the state word beside it. Lives
-  at the foot of the rail and the end of the tab bar, and mirrors Home exactly.
-- **Legend bar.** `LegendBar`. Chips for buttons (A, B, X, Y, L1/R1) with a meaning each.
-  Shown only while a gamepad is attached. Every screen sets it; it is never stale.
+- **Rail item / tab.** Icon and text, 16sp on the rail (icon left), 12sp on the tab bar
+  (icon above). Selected: accent, bold, icon accent. Focused: `surface_high` fill with the
+  ring. At rest: no fill (the rail is a strip, not a stack of buttons).
+- **Status dot.** 8 dp circle in the status hue, riding on the Home item of the rail and the
+  tab bar, so the state is visible from any pane. The word for it is on Home itself; the dot
+  never appears without that word somewhere on screen.
+- **Legend bar.** `LegendBar`. Chips for buttons (A, B, X, Y, L1/R1) with a meaning each; the
+  face buttons in the controller's own colours (§2) with white letters, as printed on the
+  Thor; L1/R1 on `surface_high`. Shown only while a gamepad is attached. Every screen sets
+  it; it is never stale.
 - **Primary button.** `Ui.primaryButton`. Accent fill, ink text, 17sp bold, 56 dp. One per
   screen. Focused: a light 3 dp ring. Pressed: `accent_deep`.
 - **Secondary button.** `Ui.secondaryButton`. `surface` fill, primary text, same size. For
@@ -188,9 +211,9 @@ Build from these; do not hand-roll a button.
 - **Header row / caption.** `Ui.caption`. Uppercase, tertiary, 22 dp above, 0 below.
 - **Filter chip.** A pill; selected: accent text and `surface_high` fill; focused: ring.
   Chips are focusable, so the D-pad reaches them by moving up from the list.
-- **Console badge.** `Consoles.badge`. 2–4 letters (SW, GC, WII, 3DS, DS, PS1, PS2, PS3,
-  PSP, VITA, DC, RA, MC, AND, CH), 12sp bold, `surface_high` pill, secondary text. Text,
-  not logos; nothing to license and nothing to draw.
+- **Console badge.** `Ui.badge` with `Consoles.badge` and `Consoles.tint`. 2–4 letters (SW,
+  GC, WII, 3DS, DS, PS1, PS2, PS3, PSP, VITA, DC, RA, MC, AND, CH), 12sp bold, in the
+  console's tint on a wash of it. Text, not logos; nothing to license and nothing to draw.
 - **Facts card.** `Ui.card` on `surface`, 20 dp padding: caption over value, 14 dp between
   pairs. Four facts on Home, never more.
 - **Sheet.** `SheetView`. An in-pane overlay on a 70% scrim; never an `AlertDialog`, which is
