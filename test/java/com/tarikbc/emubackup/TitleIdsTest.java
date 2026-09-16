@@ -19,10 +19,13 @@ class TitleIdsTest {
         assertNull(TitleIds.wiiNandGameId("not-hex"));
     }
 
-    @Test void threeDsBuiltIns() {
-        assertTrue(TitleIds.is3dsBuiltIn("0004000000030700"));   // Face Raiders
-        assertTrue(TitleIds.is3dsBuiltIn("0004001000021000"));   // a system app
-        assertFalse(TitleIds.is3dsBuiltIn("0004000000086300"));  // Animal Crossing: New Leaf
-        assertFalse(TitleIds.is3dsBuiltIn("junk"));
+    @Test void threeDsSystemCategories() {
+        assertTrue(TitleIds.is3dsSystem("0004001000021000"));    // a system app
+        assertTrue(TitleIds.is3dsSystem("0004003000008202"));    // an applet
+        assertFalse(TitleIds.is3dsSystem("0004000000086300"));   // Animal Crossing: New Leaf
+        assertFalse(TitleIds.is3dsSystem("0004000000031C00"));   // Pilotwings Resort, a retail game
+        assertFalse(TitleIds.is3dsSystem("junk"));
+        assertTrue(TitleIds.is3dsAddOn("0004008C0007AF00"));
+        assertFalse(TitleIds.is3dsAddOn("0004000000086300"));
     }
 }

@@ -41,6 +41,10 @@ abstract class Pane {
     /** X, and whatever visible button means the same thing. */
     void onX() { }
 
+    /** L2 / R2: the pane's own previous / next, where it has one (console filter on Games). */
+    void onL2() { }
+    void onR2() { }
+
     /** Pairs for the legend bar, without the shell's own L1/R1 entry. */
     String[] legend() {
         return new String[] { "A", "Select", "B", "Back" };

@@ -61,9 +61,6 @@ public final class RomIndexer {
                     // The id inside the file, for the containers whose names never carry it.
                     for (Map.Entry<IdKind, String> h : RomHeaders.read(f).entrySet()) {
                         b.derived(h.getKey(), h.getValue(), rom.displayName);
-                        if (h.getKey() == IdKind.GC_GAME_ID) {
-                            b.derived(IdKind.GC_GAME_ID, h.getValue().substring(0, 4), rom.displayName);
-                        }
                         ids++;
                     }
                 }

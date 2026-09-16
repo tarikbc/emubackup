@@ -17,8 +17,9 @@ import java.util.Map;
  * were checked against the reference device's own dumps. Android-free; see {@code test.sh}.
  *
  * <ul>
- *   <li>{@code .3ds/.cci}: NCSD magic at 0x100; the first NCCH starts at 0x4000 and holds
- *       the title id as 8 little-endian bytes at +0x108.</li>
+ *   <li>{@code .3ds/.cci}: NCSD magic at 0x100; the partition table at 0x120 says where the
+ *       first NCCH starts (0x4000 for most dumps), and it holds the title id as 8
+ *       little-endian bytes at +0x108.</li>
  *   <li>{@code .rvz/.wia}: magic at 0; the disc header copy starts at 0x58 with the 6-char
  *       game id.</li>
  *   <li>{@code .iso/.gcm}: the game id at 0, confirmed by the Wii magic at 0x18 or the
@@ -35,9 +36,14 @@ public final class RomHeaders {
         String name = f.getName().toLowerCase(Locale.ROOT);
         try (RandomAccessFile in = new RandomAccessFile(f, "r")) {
             if (name.endsWith(".3ds") || name.endsWith(".cci")) {
-                if (ascii(in, 0x100, 4).equals("NCSD") && ascii(in, 0x4000, 4).equals("NCCH")) {
-                    long id = le64(in, 0x4108);
-                    out.put(IdKind.N3DS_TITLE_ID, String.format(Locale.ROOT, "%016X", id));
+                // The partition table at 0x120 gives partition 0's offset in 0x200 media
+                // units; it is 0x4000 for most dumps and not for all of them.
+                if (ascii(in, 0x100, 4).equals("NCSD")) {
+                    long p0 = le32(in, 0x120) * 0x200L;
+                    if (p0 > 0 && ascii(in, p0 + 0x100, 4).equals("NCCH")) {
+                        long id = le64(in, p0 + 0x108);
+                        out.put(IdKind.N3DS_TITLE_ID, String.format(Locale.ROOT, "%016X", id));
+                    }
                 }
             } else if (name.endsWith(".rvz") || name.endsWith(".wia")) {
                 String magic = ascii(in, 0, 3);
@@ -67,7 +73,16 @@ public final class RomHeaders {
         return new String(b, StandardCharsets.US_ASCII);
     }
 
+    private static long le32(RandomAccessFile in, long at) throws IOException {
+        if (in.length() < at + 4) return 0;
+        byte[] b = new byte[4];
+        in.seek(at);
+        in.readFully(b);
+        return (b[0] & 0xFFL) | ((b[1] & 0xFFL) << 8) | ((b[2] & 0xFFL) << 16) | ((b[3] & 0xFFL) << 24);
+    }
+
     private static long le64(RandomAccessFile in, long at) throws IOException {
+        if (in.length() < at + 8) return 0;
         byte[] b = new byte[8];
         in.seek(at);
         in.readFully(b);

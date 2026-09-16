@@ -395,6 +395,18 @@ public class ShellActivity extends GamepadActivity {
         pane().onX();
     }
 
+    @Override protected void onGamepadL2() {
+        keyDriven = true;
+        pane().onL2();
+        keyDriven = false;
+    }
+
+    @Override protected void onGamepadR2() {
+        keyDriven = true;
+        pane().onR2();
+        keyDriven = false;
+    }
+
     @Override public void onBackPressed() {
         if (pane().back()) return;
         View f = getCurrentFocus();

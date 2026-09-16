@@ -27,10 +27,13 @@ public final class RomFilenameParser {
     public static final class Rom {
         /** The title with extension, bracket tags and parenthetical tags removed. */
         public final String displayName;
+        /** The filename without its extension, tags and all: what a save keyed by basename uses. */
+        public final String base;
         public final Map<IdKind, String> ids;
 
-        Rom(String displayName, Map<IdKind, String> ids) {
+        Rom(String displayName, String base, Map<IdKind, String> ids) {
             this.displayName = displayName;
+            this.base = base;
             this.ids = ids;
         }
 
@@ -41,7 +44,7 @@ public final class RomFilenameParser {
 
     public static Rom parse(String filename) {
         if (filename == null || filename.isEmpty()) {
-            return new Rom("", new LinkedHashMap<>());
+            return new Rom("", "", new LinkedHashMap<>());
         }
         String base = stripExtension(filename);
         Map<IdKind, String> ids = new LinkedHashMap<>();
@@ -73,11 +76,11 @@ public final class RomFilenameParser {
         Matcher p = PSP_ID.matcher(upper);
         if (p.find()) ids.putIfAbsent(IdKind.PSP_GAME_ID, p.group(1));
 
-        return new Rom(cleanTitle(base), ids);
+        return new Rom(cleanTitle(base), base, ids);
     }
 
     /** The filename with its extension removed, if it has a plausible one. */
-    static String stripExtension(String filename) {
+    public static String stripExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         if (dot <= 0) return filename;
         String ext = filename.substring(dot + 1);
@@ -88,7 +91,7 @@ public final class RomFilenameParser {
      * Strips the tags dump tools append, leaving the title. Everything from the first bracket or
      * parenthesis onward is a tag: region, revision, version, size, dump flags.
      */
-    static String cleanTitle(String base) {
+    public static String cleanTitle(String base) {
         int cut = base.length();
         for (int i = 0; i < base.length(); i++) {
             char c = base.charAt(i);
@@ -96,8 +99,17 @@ public final class RomFilenameParser {
         }
         String s = base.substring(0, cut).trim();
         // A name that was nothing but tags falls back to the whole thing rather than to nothing.
-        return s.isEmpty() ? base.trim() : s;
+        if (s.isEmpty()) return base.trim();
+        // Catalogue order puts the article last: "Legend of Zelda, The - Ocarina of Time 3D".
+        // People say "The Legend of Zelda: Ocarina of Time 3D", so that is what is shown.
+        java.util.regex.Matcher a = ARTICLE_LAST.matcher(s);
+        if (a.matches()) s = a.group(2) + " " + a.group(1) + (a.group(3) == null ? "" : a.group(3));
+        int dash = s.indexOf(" - ");
+        if (dash > 0) s = s.substring(0, dash) + ": " + s.substring(dash + 3);
+        return s;
     }
+
+    private static final Pattern ARTICLE_LAST = Pattern.compile("^(.+?), (The|A|An)( - .*)?$");
 
     private RomFilenameParser() {}
 }

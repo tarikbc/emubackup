@@ -209,8 +209,10 @@ Build from these; do not hand-roll a button.
   Middle: title (row) over meta. Right: a status word in its hue. Rows are the unit of
   navigation, so every row is focusable and clickable; a row is never just information.
 - **Header row / caption.** `Ui.caption`. Uppercase, tertiary, 22 dp above, 0 below.
-- **Filter chip.** A pill; selected: accent text and `surface_high` fill; focused: ring.
-  Chips are focusable, so the D-pad reaches them by moving up from the list.
+- **Filter chip.** A pill with a family glyph (disc, cartridge, controller; console logos are
+  trademarks and are not drawn) and the console's name; selected: accent; focused: ring.
+  Chips are focusable, so the D-pad reaches them by moving up from the list; L2/R2 step
+  through them without moving the cursor.
 - **Console badge.** `Ui.badge` with `Consoles.badge` and `Consoles.tint`. 2–4 letters (SW,
   GC, WII, 3DS, DS, PS1, PS2, PS3, PSP, VITA, DC, RA, MC, AND, CH), 12sp bold, in the
   console's tint on a wash of it. Text, not logos; nothing to license and nothing to draw.
@@ -285,6 +287,7 @@ consequences:
 | **X** | The screen's one secondary action, named in the legend (e.g. "Rename profile"). |
 | **Y** | "What is this?" on Home and on Settings sections. |
 | L1 / R1 | Previous / next place on the rail, everywhere. |
+| L2 / R2 | The pane's own previous / next: the console filter on Games. |
 
 Rules: **nothing is reachable only by a gamepad button**; every X and Y has a visible button.
 Focus is always visible; every screen sets a default focus; the first D-pad press must land

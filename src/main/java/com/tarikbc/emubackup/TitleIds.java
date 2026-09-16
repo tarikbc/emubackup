@@ -26,14 +26,21 @@ public final class TitleIds {
         return b.toString();
     }
 
-    /** True for a 3DS title id that is one of the console's own built-in apps, not a game. */
-    public static boolean is3dsBuiltIn(String titleId) {
+    /**
+     * True for a 3DS title id in the system categories (00040010 system apps, 00040030
+     * applets). Retail games and the built-in applications share 00040000 and cannot be told
+     * apart by range: Pilotwings Resort is 00031C00, next to Face Raiders at 00030700, so no
+     * guess is made there.
+     */
+    /** True for a 3DS title id in the add-on content category (0004008C): DLC saves, not a game. */
+    public static boolean is3dsAddOn(String titleId) {
+        return titleId != null && titleId.matches("[0-9a-fA-F]{16}")
+                && titleId.substring(0, 8).equalsIgnoreCase("0004008C");
+    }
+
+    public static boolean is3dsSystem(String titleId) {
         if (titleId == null || !titleId.matches("[0-9a-fA-F]{16}")) return false;
         String hi = titleId.substring(0, 8).toUpperCase(java.util.Locale.ROOT);
-        long lo = Long.parseLong(titleId.substring(8), 16);
-        // 00040000 with a low id under 0x40000 is the built-in application range (Camera,
-        // Sound, Mii Maker, Face Raiders, AR Games, their region variants); 00040010 and
-        // 00040030 are system apps and applets.
-        return (hi.equals("00040000") && lo < 0x40000) || hi.equals("00040010") || hi.equals("00040030");
+        return hi.equals("00040010") || hi.equals("00040030");
     }
 }

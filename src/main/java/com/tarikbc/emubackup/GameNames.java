@@ -70,20 +70,24 @@ public final class GameNames {
 
         /** Derived from the user's own library. Wins over a seed entry. */
         public Builder derived(IdKind kind, String id, String name) {
-            if (id != null && name != null && !name.isEmpty()) derived.put(key(kind, id), name);
+            if (id != null && name != null && !name.isEmpty()) {
+                derived.put(key(kind, id), name);
+                // The SD card keys a 3DS save by the low half of the title id only.
+                if (kind == IdKind.N3DS_TITLE_ID && id.length() == 16) derived.put(key(kind, id.substring(8)), name);
+                // A Wii NAND save is keyed by the first four characters of the disc id.
+                if (kind == IdKind.GC_GAME_ID && id.length() == 6) derived.put(key(kind, id.substring(0, 4)), name);
+            }
             return this;
         }
 
         public Builder derivedFrom(RomFilenameParser.Rom rom) {
             for (Map.Entry<IdKind, String> e : rom.ids.entrySet()) {
                 derived(e.getKey(), e.getValue(), rom.displayName);
-                // A Wii NAND save is keyed by the first four characters of the disc id.
-                if (e.getKey() == IdKind.GC_GAME_ID && e.getValue().length() == 6) {
-                    derived(IdKind.GC_GAME_ID, e.getValue().substring(0, 4), rom.displayName);
-                }
             }
-            // Also registered under its own cleaned name, so platforms keyed by basename resolve.
+            // Also registered under its own cleaned name and its raw basename, so platforms
+            // keyed by basename resolve whether the emulator kept the tags or not.
             derived(IdKind.ROM_BASENAME, rom.displayName, rom.displayName);
+            derived(IdKind.ROM_BASENAME, rom.base, rom.displayName);
             return this;
         }
 

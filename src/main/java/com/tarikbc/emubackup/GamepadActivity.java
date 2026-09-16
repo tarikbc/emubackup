@@ -97,6 +97,8 @@ public abstract class GamepadActivity extends Activity {
     protected void onGamepadY() { }
     protected void onGamepadL1() { }
     protected void onGamepadR1() { }
+    protected void onGamepadL2() { }
+    protected void onGamepadR2() { }
 
     /** Debug hook; the probe screen overrides it to show what arrived. */
     protected void onInputLogged(String line) { }
@@ -131,6 +133,12 @@ public abstract class GamepadActivity extends Activity {
                 return true;
             case KeyEvent.KEYCODE_BUTTON_R1:
                 if (up) onGamepadR1();
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_L2:
+                if (up) onGamepadL2();
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_R2:
+                if (up) onGamepadR2();
                 return true;
             default:
                 return super.dispatchKeyEvent(e);

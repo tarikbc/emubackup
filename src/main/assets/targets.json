@@ -113,7 +113,7 @@
         { "id": "dolphin-gc", "label": "GameCube memory cards", "category": "SAVE", "tier": "APP_PRIVATE",
           "pkg": "org.dolphinemu.dolphinemu", "root": "{DATA}/files/GC",
           "include": ["**/*.gci", "**/*.raw"], "maxBytes": 67108864,
-          "grouping": { "filenameRegex": "^(?<game>.+)\\.gci$", "gameIdKind": "ROM_BASENAME" },
+          "grouping": { "filenameRegex": "^[0-9A-Z]{2}-(?<game>[A-Z0-9]{4})-.*\\.gci$", "gameIdKind": "GC_GAME_ID" },
           "note": "Individual .gci saves plus SRAM.raw. Unreachable without Shizuku on Android 11+." },
 
         { "id": "dolphin-wii", "label": "Wii NAND saves", "category": "SAVE", "tier": "APP_PRIVATE",

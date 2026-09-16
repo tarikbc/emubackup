@@ -72,7 +72,7 @@ then `adb -s emulator-5554`). One BACK on the walkthrough lands on the shell.
 ## Touch mode and the non-navigation buttons
 
 Only navigation keys (the D-pad, and A once remapped to `DPAD_CENTER`) make Android leave
-touch mode. L1/R1, B, X and Y are ordinary buttons. After any touch, or in a fresh window, a
+touch mode. L1/R1, L2/R2, B, X and Y are ordinary buttons. After any touch, or in a fresh window, a
 plain `requestFocus()` on a row during an L1/R1 pane switch returns false and no cursor shows;
 a `RecyclerView` takes the focus instead because it is focusable in touch mode. The one public
 call that leaves touch mode is `requestFocusFromTouch()`, so every focus change a gamepad

@@ -30,11 +30,23 @@ class RomHeadersTest {
         try (RandomAccessFile f = new RandomAccessFile(p.toFile(), "rw")) {
             f.setLength(0x5000);
             put(f, 0x100, s("NCSD"));
-            put(f, 0x4000, s("NCCH"));
+            put(f, 0x120, new byte[] { 0x20, 0, 0, 0 });   // partition 0 at 0x20 * 0x200 = 0x4000
+            put(f, 0x4100, s("NCCH"));
             // 0004000000086300, little-endian
             put(f, 0x4108, new byte[] { 0x00, 0x63, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00 });
         }
         assertEquals("0004000000086300", RomHeaders.read(p.toFile()).get(IdKind.N3DS_TITLE_ID));
+
+        // A dump whose first partition sits elsewhere is found through the table.
+        Path q = tmp.resolve("Mario Kart 7 (Europe).3ds");
+        try (RandomAccessFile f = new RandomAccessFile(q.toFile(), "rw")) {
+            f.setLength(0x9000);
+            put(f, 0x100, s("NCSD"));
+            put(f, 0x120, new byte[] { 0x40, 0, 0, 0 });   // 0x8000
+            put(f, 0x8100, s("NCCH"));
+            put(f, 0x8108, new byte[] { 0x00, 0x1c, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00 });
+        }
+        assertEquals("0004000000031C00", RomHeaders.read(q.toFile()).get(IdKind.N3DS_TITLE_ID));
     }
 
     @Test

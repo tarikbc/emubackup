@@ -229,11 +229,12 @@ final class GamesPane extends Pane {
             if (names.isKnown(IdKind.GC_GAME_ID, id)) return names.lookup(IdKind.GC_GAME_ID, id);
             return "Wii title " + id;
         }
-        if (kind == IdKind.N3DS_TITLE_ID && !names.isKnown(kind, key) && TitleIds.is3dsBuiltIn(key)) {
-            return "3DS built-in app \u00b7 " + key.substring(8);
-        }
-        if (!names.isKnown(kind, key)) return Consoles.name(badge) + " title " + key;
-        return names.lookup(kind, key);
+        if (names.isKnown(kind, key)) return names.lookup(kind, key);
+        if (kind == IdKind.ROM_BASENAME) return RomFilenameParser.cleanTitle(key);
+        if (kind == IdKind.N3DS_TITLE_ID && TitleIds.is3dsSystem(key)) return "3DS system data \u00b7 " + key.substring(8);
+        if (kind == IdKind.N3DS_TITLE_ID && TitleIds.is3dsAddOn(key)) return "3DS add-on content \u00b7 " + key.substring(8);
+        if (kind == IdKind.N3DS_TITLE_ID && key.length() == 16) return "3DS title " + key.substring(8);
+        return Consoles.name(badge) + " title " + key;
     }
 
     private void renderChips() {
@@ -250,6 +251,7 @@ final class GamesPane extends Pane {
     private View chip(String label, String badge) {
         boolean on = badge == null ? filter == null : badge.equals(filter);
         TextView t = Ui.bold(host, label, 14, on ? R.color.accent : R.color.text_secondary);
+        Ui.iconStart(t, familyIcon(badge), on ? R.color.accent : R.color.text_tertiary, 16, 6);
         t.setBackgroundResource(R.drawable.focus_ring);
         t.setPadding(Ui.dp(host, 16), Ui.dp(host, 8), Ui.dp(host, 16), Ui.dp(host, 8));
         t.setMinHeight(Ui.dp(host, 40));
@@ -270,6 +272,55 @@ final class GamesPane extends Pane {
         lp.rightMargin = Ui.dp(host, 8);
         t.setLayoutParams(lp);
         return t;
+    }
+
+    /** Not a logo (those are trademarks) but what the console's games came on. */
+    private static int familyIcon(String badge) {
+        if (badge == null) return R.drawable.ic_gamepad_2;
+        switch (badge) {
+            case "GC": case "WII": case "PS1": case "PS2": case "PS3": case "PSP": case "DC":
+                return R.drawable.ic_disc;
+            case "SW": case "DS": case "3DS": case "VITA":
+                return R.drawable.ic_mark;
+            default:
+                return R.drawable.ic_gamepad_2;
+        }
+    }
+
+    /** The chips in order: All first, then each console present. */
+    private List<String> chipBadges() {
+        Set<String> present = new HashSet<>();
+        for (Row r : all) present.add(r.badge);
+        List<String> badges = new ArrayList<>(present);
+        badges.sort((a, b) -> Integer.compare(Consoles.rank(a), Consoles.rank(b)));
+        badges.add(0, null);
+        return badges;
+    }
+
+    /** L2 / R2: previous / next console, wrapping through All. */
+    private void cycle(int step) {
+        if (open != null) return;
+        List<String> badges = chipBadges();
+        int at = badges.indexOf(filter);
+        int next = ((at + step) % badges.size() + badges.size()) % badges.size();
+        filter = badges.get(next);
+        renderChips();
+        renderList(-1);
+        View again = chipBar.findViewWithTag(filter == null ? "" : filter);
+        if (again != null) {
+            again.getParent().requestChildFocus(again, again);
+            View f = host.getCurrentFocus();
+            // Keep the cursor where it was (a row or a chip); only the filter changes.
+            if (f == null || chipBar.findViewWithTag(f.getTag()) != null) Ui.focus(again, true);
+        }
+    }
+
+    @Override void onL2() {
+        cycle(-1);
+    }
+
+    @Override void onR2() {
+        cycle(1);
     }
 
     private int focusedPosition() {
@@ -660,7 +711,7 @@ final class GamesPane extends Pane {
     // ---- pane contract ----
 
     @Override String[] legend() {
-        if (open == null) return new String[] { "A", "Open", "B", "Back" };
+        if (open == null) return new String[] { "A", "Open", "B", "Back", "L2/R2", "Console" };
         if (open.entry != null && open.entry.group.profileKey != null) {
             return new String[] { "A", "Select", "B", "Back", "X", "Rename profile" };
         }
