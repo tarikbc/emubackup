@@ -10,17 +10,39 @@ project.
 
 ## Steps
 
+The console calls this area **Google Auth Platform**. Menu labels below are the English
+ones; the pages are the same in any locale.
+
 1. Create a project at <https://console.cloud.google.com/>.
 2. Enable the **Google Drive API**.
-3. Configure the **OAuth consent screen**. User type *External* is fine.
-4. Add the scope `https://www.googleapis.com/auth/drive.file` — and **only** that scope.
-   It is classified non-sensitive, so it needs no verification and no security assessment.
-   Do not request full `drive`; that is a restricted scope requiring an annual third-party
-   security audit, which is absurd for a save backup tool.
-5. **Set the publishing status to "In production".** See the warning below.
-6. Create credentials → OAuth client ID → application type **TVs and Limited Input
-   devices**. Note the client ID and client secret.
-7. Build:
+3. **Google Auth Platform → Overview** → run the OAuth setup wizard. App name, support
+   email, audience **External**, contact email.
+4. **Clients → Create client** → application type **TVs and Limited Input devices**.
+   The client ID and client secret are shown once, in a dialog. **Copy the secret now**;
+   the console will not show it again, and a lost one has to be rotated.
+5. **Data access → Add or remove scopes**. The scope is not in the picker list until the
+   Drive API has finished enabling, so paste it into *Add scopes manually* instead:
+
+       https://www.googleapis.com/auth/drive.file
+
+   Add that scope and **only** that scope. It is classified non-sensitive — it appears
+   under *Your non-sensitive scopes* — so it needs no verification and no security
+   assessment. Do not request full `drive`; that is a restricted scope requiring an annual
+   third-party security audit, which is absurd for a save backup tool. Click **Save**.
+6. **Branding**. "Publish app" stays greyed out until this page is complete, and the only
+   hint the console gives is a one-line "to publish your app, complete the configuration
+   on the branding page". Fill in:
+   - **Application home page**, **Privacy policy link**, **Terms of service link** — for
+     a fork, your own repository URLs will do.
+   - **Authorized domains** — add the bare domain of those URLs, for example
+     `github.com`. Leave it out and the page shows "missing domain" and refuses to save.
+     A domain you do not own is accepted here because the scope is non-sensitive; a
+     sensitive or restricted scope would require Search Console ownership.
+
+   Click **Save**.
+7. **Audience → Publish app → Confirm.** The status must read **In production**. See the
+   warning below.
+8. Build:
 
        EMUBACKUP_DRIVE_CLIENT_ID=xxxx.apps.googleusercontent.com \
        EMUBACKUP_DRIVE_CLIENT_SECRET=xxxx \

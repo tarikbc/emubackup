@@ -113,3 +113,7 @@ Not affiliated with any emulator project or with Google. Bring your own games.
 ## License
 
 [Apache-2.0](LICENSE).
+
+[Privacy policy](PRIVACY.md) and [terms](TERMS.md). Short version: there is no server, no
+account and no analytics. Backups go from your device straight to your own Drive, under a
+scope that can only see files the app itself created.
