@@ -114,9 +114,15 @@ public class VerifyActivity extends Activity {
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (error != null) show(false, "Could not be checked", error);
-                else show(result.ok(), result.ok() ? "This backup is sound"
-                        : result.cancelled ? "Stopped" : "This backup is not sound",
-                        report(result));
+                else {
+                    // A finished check is worth remembering; a stopped one proves nothing.
+                    if (!result.cancelled) {
+                        VerifyMemory.record(VerifyActivity.this, versionId, result.ok(), result.summary());
+                    }
+                    show(result.ok(), result.ok() ? "This backup is sound"
+                            : result.cancelled ? "Stopped" : "This backup is not sound",
+                            report(result));
+                }
             });
         });
     }

@@ -48,14 +48,14 @@ public class ShellActivity extends GamepadActivity {
     private final Pane[] panes = new Pane[Dest.values().length];
     private Dest current = Dest.HOME;
     private HomeModel model;
+    /** True while a gamepad button (not a navigation key) is driving a focus change. */
+    private boolean keyDriven;
 
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         panes[Dest.HOME.ordinal()] = new HomePane(this);
         panes[Dest.GAMES.ordinal()] = new GamesPane(this);
-        panes[Dest.BACKUPS.ordinal()] = new LinksPane(this, "Backups", null,
-                new LinksPane.Link("All backups", "Newest first. Put one back, check it, or export it",
-                        () -> open(VersionsActivity.class)));
+        panes[Dest.BACKUPS.ordinal()] = new BackupsPane(this);
         panes[Dest.SETTINGS.ordinal()] = new LinksPane(this, "Settings", null,
                 new LinksPane.Link("Where backups go", "Google Drive, a folder you choose, or this device",
                         () -> open(DestinationActivity.class)),
@@ -193,6 +193,10 @@ public class ShellActivity extends GamepadActivity {
         return model;
     }
 
+    boolean keyDriven() {
+        return keyDriven;
+    }
+
     ExecutorService io() {
         return io;
     }
@@ -240,7 +244,7 @@ public class ShellActivity extends GamepadActivity {
             // list so the parking spot is a view that draws no ring.
             View f = p.defaultFocus();
             if (f != null) {
-                f.requestFocus();
+                Ui.focus(f, keyDriven);
                 focusByDefault(f);
             }
         }
@@ -259,6 +263,11 @@ public class ShellActivity extends GamepadActivity {
 
     @Override protected void onResume() {
         super.onResume();
+        reload();
+    }
+
+    /** Rescans and re-reads the store. Every resume does this; a retry button does it too. */
+    void reload() {
         if (dotWord != null) dotWord.setText("Checking");
         io.execute(() -> {
             final HomeModel m = HomeModel.load(this);
@@ -272,8 +281,6 @@ public class ShellActivity extends GamepadActivity {
                 // where a thumb should be resting.
                 View f = getCurrentFocus();
                 boolean parked = f == null || f == placeRows[Dest.HOME.ordinal()];
-                android.util.Log.d("EmuShell", "model loaded; focus=" + f + " parked=" + parked
-                        + " pad=" + GamepadActivity.gamepadPresent());
                 if (current == Dest.HOME && parked && GamepadActivity.gamepadPresent()) {
                     focusByDefault(pane().defaultFocus());
                 }
@@ -374,12 +381,16 @@ public class ShellActivity extends GamepadActivity {
 
     @Override protected void onGamepadL1() {
         Dest[] all = Dest.values();
+        keyDriven = true;
         show(all[(current.ordinal() + all.length - 1) % all.length], true);
+        keyDriven = false;
     }
 
     @Override protected void onGamepadR1() {
         Dest[] all = Dest.values();
+        keyDriven = true;
         show(all[(current.ordinal() + 1) % all.length], true);
+        keyDriven = false;
     }
 
     @Override protected void onGamepadY() {
@@ -395,12 +406,12 @@ public class ShellActivity extends GamepadActivity {
         View f = getCurrentFocus();
         boolean inPane = f != null && isDescendant(f, paneHost);
         if (inPane) {
-            placeRows[current.ordinal()].requestFocus();
+            placeRows[current.ordinal()].requestFocusFromTouch();
             return;
         }
         if (current != Dest.HOME) {
             show(Dest.HOME, false);
-            placeRows[Dest.HOME.ordinal()].requestFocus();
+            placeRows[Dest.HOME.ordinal()].requestFocusFromTouch();
             return;
         }
         super.onBackPressed();

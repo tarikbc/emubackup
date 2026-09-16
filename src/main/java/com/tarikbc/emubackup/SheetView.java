@@ -92,7 +92,7 @@ public final class SheetView extends FrameLayout {
         host.addView(sheet, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         final View f = first;
-        f.post(f::requestFocus);
+        f.post(f::requestFocusFromTouch);
         return sheet;
     }
 
@@ -181,7 +181,7 @@ public final class SheetView extends FrameLayout {
         sheet.addView(card, lp);
         host.addView(sheet, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        field.post(field::requestFocus);
+        field.post(field::requestFocusFromTouch);
         return sheet;
     }
 

@@ -71,6 +71,54 @@ final class Ui {
         return t;
     }
 
+    /**
+     * Focuses a RecyclerView row, now if it exists, otherwise as soon as it is laid out.
+     *
+     * <p>A fresh adapter, or a pane that just came on screen, has no rows until the next layout
+     * pass. Pre-draw is the first moment after layout, but a single pre-draw can still precede
+     * the rows, and no further draw is guaranteed, so the listener stays on for a few frames
+     * and asks for another frame each time.
+     */
+    static void focusRow(androidx.recyclerview.widget.RecyclerView list, int pos, boolean fromKey) {
+        if (list == null || pos < 0) return;
+        androidx.recyclerview.widget.RecyclerView.ViewHolder h = list.findViewHolderForAdapterPosition(pos);
+        if (h != null) {
+            focus(h.itemView, fromKey);
+            return;
+        }
+        list.scrollToPosition(pos);
+        list.getViewTreeObserver().addOnPreDrawListener(
+                new android.view.ViewTreeObserver.OnPreDrawListener() {
+                    int tries = 8;
+
+                    @Override public boolean onPreDraw() {
+                        androidx.recyclerview.widget.RecyclerView.ViewHolder h2 =
+                                list.findViewHolderForAdapterPosition(pos);
+                        if (h2 != null || --tries <= 0) {
+                            list.getViewTreeObserver().removeOnPreDrawListener(this);
+                            if (h2 != null) focus(h2.itemView, fromKey);
+                        } else {
+                            list.postInvalidate();
+                        }
+                        return true;
+                    }
+                });
+    }
+
+    /**
+     * Gives focus to a view, leaving touch mode when a gamepad button asked for it.
+     *
+     * <p>Only navigation keys (the D-pad, and A once remapped to DPAD_CENTER) make the framework
+     * leave touch mode. L1/R1, B, X and Y are ordinary buttons, so after any touch, or in a fresh
+     * window, a plain {@code requestFocus} on a row returns false and nothing shows a cursor.
+     * {@code requestFocusFromTouch} is the one public call that leaves touch mode first. Touch
+     * itself must not call it, or every tap would grow a ring.
+     */
+    static boolean focus(View v, boolean fromKey) {
+        if (v == null) return false;
+        return fromKey ? v.requestFocusFromTouch() : v.requestFocus();
+    }
+
     static View dot(Context c, int colorRes, int sizeDp) {
         View v = new View(c);
         GradientDrawable d = new GradientDrawable();

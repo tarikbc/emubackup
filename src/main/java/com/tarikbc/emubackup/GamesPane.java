@@ -292,24 +292,7 @@ final class GamesPane extends Pane {
     }
 
     private void focusRow(int pos) {
-        if (pos < 0 || list == null) return;
-        RecyclerView.ViewHolder h = list.findViewHolderForAdapterPosition(pos);
-        if (h != null) {
-            h.itemView.requestFocus();
-            return;
-        }
-        // Not laid out yet (a fresh adapter, or a pane that just came on screen). Rows exist
-        // only after the next layout pass, and pre-draw is the first moment after it.
-        list.scrollToPosition(pos);
-        list.getViewTreeObserver().addOnPreDrawListener(
-                new android.view.ViewTreeObserver.OnPreDrawListener() {
-                    @Override public boolean onPreDraw() {
-                        list.getViewTreeObserver().removeOnPreDrawListener(this);
-                        RecyclerView.ViewHolder h2 = list.findViewHolderForAdapterPosition(pos);
-                        if (h2 != null) h2.itemView.requestFocus();
-                        return true;
-                    }
-                });
+        Ui.focusRow(list, pos, host.keyDriven());
     }
 
     private final class Adapter extends RecyclerView.Adapter<Holder> {
@@ -412,7 +395,7 @@ final class GamesPane extends Pane {
         open = null;
         if (listView.getParent() == null) root.addView(listView);
         host.refreshLegend();
-        focusRow(openPosition);
+        Ui.focusRow(list, openPosition, true);
     }
 
     private void refreshDetail() {
