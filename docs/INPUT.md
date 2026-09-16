@@ -48,3 +48,20 @@ A probe log excerpt, for the record:
   window and never sees the activity's key mapping.
 - After a RecyclerView adapter swap, focus is restored to the previous position; change
   animations are disabled so `notifyItemChanged` does not detach the focused row.
+
+## Verifying without hands
+
+Once the screen is unlocked (`wm dismiss-keyguard`, then `input keyevent 82`), synthetic keys
+reach the app and `screencap` returns the main display:
+
+```
+adb -s 64ff2273 shell input keyevent KEYCODE_DPAD_DOWN
+adb -s 64ff2273 shell input keyevent KEYCODE_BUTTON_A     # arrives with src=0x0, still remapped
+adb -s 64ff2273 exec-out screencap -p > shot.png
+```
+
+Synthetic events carry source 0 rather than 0x501, so they exercise the remap in
+`GamepadActivity` but not gamepad detection: the legend shows only because the real controller
+is attached. Quit SideMount first (it contends for the USB connection) and use the serial;
+the Thor exposes two adb devices.
+

@@ -74,6 +74,18 @@ So app-private saves need **Shizuku** (activated over adb, giving `shell` UID). 
 | Native | GTA SA | `files/GTASAsf*.b`, `gta_sa.set` | small |
 | Native | Clone Hero, Minecraft Bedrock, Amethyst | `files/**` | mostly empty today |
 
+**What shell cannot read, measured on the Thor (2026-09-16).** Files an app writes under
+`Android/data/<pkg>/` normally carry group `ext_data_rw` with mode 0660, and the shell user
+reads them. Two exceptions exist and both are permanent for a non-root Shizuku:
+
+- mode **0600** files (DuckStation writes its memory cards this way: 8 of its 10 files);
+- files whose group is the app's own uid rather than `ext_data_rw` (Minecraft's `level.dat`,
+  `session.lock`, `playerdata/`, `stats/`: 20 files written through Java NIO).
+
+`BackupRunner` already records these per target as "N file(s) could not be read and are not in
+this backup", and Home surfaces that record as its own state rather than counting the gap as a
+game that changed. There is no route around it short of root; the honest thing is to say so.
+
 ### Traps the design must solve
 
 1. **Saves interleaved with ROMs.** PS2, PSP, 3DS, Switch and DS keep saves *inside* the ROM tree; `ROMs/nds/*.sav` sits beside multi-GB ROM zips. Requires an allow-list of subpaths and globs, never "copy the parent folder".
