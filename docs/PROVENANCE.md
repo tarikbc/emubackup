@@ -171,6 +171,30 @@ matches its siblings' permissions exactly:
 
 The owner cannot be changed without root and does not need to be.
 
+## Retention and verification on real data (2026-09-16)
+
+Retention is the only code in the app that deletes a backup, so it was exercised against the
+live Drive store rather than only in tests.
+
+Eight versions existed. `v0001` held every archive; `v0002` through `v0008` were incrementals
+that wrote no archives of their own, because nothing on the device had changed, so all of them
+extract from `v0001`. The keep count was set to 5 and one more backup was run.
+
+    before   v0001  v0002  v0003  v0004  v0005  v0006  v0007  v0008
+    after    v0001                       v0005  v0006  v0007  v0008
+
+Three were removed, and the one that survived is the **oldest** of all. `v0001` is the base every
+remaining chain extracts from, so the count-based rule wanted it gone first and the dependency
+rule refused. That is the case the tests assert and this is it happening on hardware.
+
+Verification then confirmed the store was still restorable afterwards. `v0008` holds no archives
+of its own, so checking it follows its chains back to `v0001`:
+
+    18 archives checked, 125 MB read. Every one matches.
+
+Which is the whole argument: pruning removed 3 of 8 versions and the newest one can still be
+restored in full.
+
 ## Verified footprint
 
     real save / state / memcard data     ~730 MB
