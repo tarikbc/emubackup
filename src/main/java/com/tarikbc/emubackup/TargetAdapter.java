@@ -72,6 +72,17 @@ public final class TargetAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             TargetScan s = row.scan;
             android.content.res.Resources res = itemView.getResources();
 
+            // Only targets that both have a grouping rule and actually found something are worth
+            // opening; the rest would show an empty screen.
+            boolean drillable = t.grouping != null && s != null && s.hasContent();
+            itemView.setOnClickListener(drillable ? v -> {
+                android.content.Intent i = new android.content.Intent(
+                        v.getContext(), GroupsActivity.class);
+                i.putExtra(GroupsActivity.EXTRA_TARGET, t.id);
+                v.getContext().startActivity(i);
+            } : null);
+            itemView.setClickable(drillable);
+
             label.setText(t.label);
             chip.setText(chipText(t));
             chip.setTextColor(res.getColor(

@@ -53,6 +53,10 @@ $SRC/RestoreItem.java
 $SRC/RestorePlan.java
 $SRC/RestorePlanner.java
 $SRC/RestoreRunner.java
+$SRC/SaveGroup.java
+$SRC/GroupBuilder.java
+$SRC/RomFilenameParser.java
+$SRC/GameNames.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,
