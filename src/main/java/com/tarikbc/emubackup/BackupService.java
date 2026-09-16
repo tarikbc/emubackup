@@ -150,8 +150,13 @@ public class BackupService extends Service {
         Notifications.result(this, failed ? "Backup failed" : "Backup finished", summary);
         // Manual runs go in the same log as scheduled ones. A history with half the runs missing
         // is worse than none, because it reads as a complete record.
-        Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "manual",
-                !failed, versionId, bytes, summary));
+        // A cancellation is not a run and not a failure. The person stopped it and nothing was
+        // written; recording it as "ok" would put a success in the history for a backup that
+        // never happened, and recording it as a failure would blame them for their own choice.
+        if (versionId != null || failed) {
+            Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "manual",
+                    !failed, versionId, bytes, summary));
+        }
         Listener l = LISTENER;
         if (l != null) l.onFinished(summary, failed);
 

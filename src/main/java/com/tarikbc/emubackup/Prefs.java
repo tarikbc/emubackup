@@ -40,7 +40,9 @@ public final class Prefs {
                 .putBoolean(K_UNMETERED, s.requiresUnmetered)
                 .putInt(K_KEEP, s.keepVersions)
                 .putLong(K_BUDGET, s.budgetBytes)
-                .apply();
+                // commit, not apply: this is a deliberate choice the person made once, and it
+                // decides whether backups happen at all.
+                .commit();
         BackupJobScheduler.apply(ctx, s);
     }
 
@@ -48,10 +50,18 @@ public final class Prefs {
         return RunLog.fromJson(prefs(ctx).getString(K_LOG, null));
     }
 
-    /** Appends a run and returns the log it produced, so the caller can act on the new state. */
+    /**
+     * Appends a run and returns the log it produced, so the caller can act on the new state.
+     *
+     * <p>Written with {@code commit} rather than {@code apply}. This is written once per backup,
+     * so a synchronous write costs nothing measurable, and the asynchronous one is not durable
+     * across a process being killed, which is exactly what happens to a background job when the
+     * system reclaims memory. A run that happened and left no record is the silent failure this
+     * log exists to make impossible, so it is not a place to save a millisecond.
+     */
     public static RunLog record(Context ctx, RunLog.Run run) {
         RunLog updated = log(ctx).with(run);
-        prefs(ctx).edit().putString(K_LOG, updated.toJson()).apply();
+        prefs(ctx).edit().putString(K_LOG, updated.toJson()).commit();
         return updated;
     }
 
