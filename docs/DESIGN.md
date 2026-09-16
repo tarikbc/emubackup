@@ -95,11 +95,14 @@ Meaning is never carried by colour alone. Every dot has a word next to it ("Safe
 
 ## §3 Mark and icons
 
-**The mark** is a cartridge outline: the physical object a battery save used to live in, which
-is exactly what the app preserves. Flat, two colours, no gradient, legible at 48 px. It ships
-as an adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`, accent on `surface_low`)
-and as `ic_mark` at 24 dp beside the name on the rail. Consoles are named with text badges
-(§6), not logos.
+**The mark** is a cartridge: the object a battery save used to live in, which is exactly what
+the app preserves. One drawing serves every use. On the 24 grid it is a 2 px round stroke
+with a clipped top-right corner, a label window and a grip line, the same weight as the
+Lucide icons beside it; that is `ic_mark`, tinted at runtime, on the rail beside the name
+and as the cartridge-family glyph on the Games chips. On the launcher the same silhouette is
+filled in `accent` with the window and grip cut in `surface_low`, placed in the 66 dp safe
+zone of the adaptive canvas (`mipmap-anydpi-v26/ic_launcher.xml`). Chosen from six
+candidates on 2026-09-16. Consoles are named with text badges (§6), not logos.
 
 **Icons** are [Lucide](https://lucide.dev) (ISC), vendored as vector drawables by
 `tools/vendor-icons.py`: 24 px grid, 2 px round stroke, tinted at runtime through

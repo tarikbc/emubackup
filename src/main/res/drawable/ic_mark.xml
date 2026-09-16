@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The cartridge at 24dp, for the rail. Tinted at runtime. DESIGN.md §3. -->
+<!-- The mark: a cartridge with a clipped corner, a label window and a grip line, drawn as a
+     2px round stroke on the 24 grid like the Lucide icons beside it. Tinted at runtime.
+     DESIGN.md §3. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF"
-        android:pathData="M6,2h12a2,2 0 0 1 2,2v12l-4,6H8L4,16V4a2,2 0 0 1 2,-2z M8,5v5h8V5z M9,15v4h2v-4z M13,15v4h2v-4z"
-        android:fillType="evenOdd" />
+    <path android:pathData="M6,2h9l4,4v15a1,1 0 0 1 -1,1H6a1,1 0 0 1 -1,-1V3a1,1 0 0 1 1,-1z"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M8,8h8v6H8z"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M8,17h8"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
 </vector>
