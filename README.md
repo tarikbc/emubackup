@@ -1,248 +1,223 @@
-<div align="center">
+<p align="center">
+  <img src="docs/img/logo.png" alt="EmuBackup" width="520">
+</p>
 
 # EmuBackup
 
-**Emulator saves, backed up.**
+[![build](https://img.shields.io/github/actions/workflow/status/tarikbc/emubackup/build.yml?style=for-the-badge&color=4FC3A1)](https://github.com/tarikbc/emubackup/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/tarikbc/emubackup?sort=semver&style=for-the-badge&color=4FC3A1)](https://github.com/tarikbc/emubackup/releases/latest)
+[![downloads](https://img.shields.io/github/downloads/tarikbc/emubackup/total?style=for-the-badge&color=4FC3A1)](https://github.com/tarikbc/emubackup/releases)
+[![license](https://img.shields.io/badge/license-Apache--2.0-4FC3A1?style=for-the-badge)](LICENSE)
 
-Finds every emulator save on your Android device, versions it, and restores it —
-including the ones Android hides from apps.
+**Emulator saves, backed up.** EmuBackup finds every emulator save on an Android device,
+versions it, backs it up to Google Drive or a folder, and puts it back one game at a time.
+It reaches the saves Android hides from ordinary apps, and it never reports a backup it has
+not verified.
 
-[![Build](https://github.com/tarikbc/emubackup/actions/workflows/build.yml/badge.svg)](https://github.com/tarikbc/emubackup/actions/workflows/build.yml)
+Save data on Android is scattered across a dozen emulator layouts. Some of it sits beside
+multi-gigabyte ROMs in shared storage. Some of it sits in `Android/data`, where it is deleted
+on uninstall and unreadable by other apps. On a typical handheld the saves worth keeping are a
+few hundred megabytes out of a terabyte: small, scattered and irreplaceable.
 
-</div>
+EmuBackup is made for the handheld it runs on. Every screen works with a controller and by
+touch, in landscape and in portrait. Home gives one plain answer, **your saves are backed up**
+or what to do next, and the legend at the bottom names the buttons that act on the screen.
 
-<div align="center">
-<img src="docs/screenshots/01-what-it-found.png" width="49%" alt="282 MB of saves across 14 emulators, broken down by emulator">
-<img src="docs/screenshots/03-destinations.png" width="49%" alt="Three destinations: Google Drive, a folder you pick, this device">
-<img src="docs/screenshots/05-schedule.png" width="49%" alt="Automatic backups: frequency, conditions, retention and history">
-<img src="docs/screenshots/04-verify.png" width="49%" alt="This backup is sound: 18 archives checked, 125 MB read">
-</div>
+## Screenshots
 
-## Why
+Captured on an AYN Thor. Home, then the Games pane with the console filter driven by L2/R2:
 
-An emulator update destroyed my Switch profiles. The saves themselves survived only by
-luck — they happened to sit in shared storage rather than inside the app's own folder — and
-recovering them meant rebuilding a profile file byte by byte from directory names.
+<p align="center">
+  <img src="docs/img/home.gif" alt="Home says the saves are backed up; Y opens a plain-language explanation; A starts a backup, which runs on its own screen and ends by naming anything it could not read" width="49%">
+  <img src="docs/img/games.gif" alt="Games: R2 cycles the console filter from All to Switch, GameCube and Wii; opening Mario Kart Double Dash shows its history, and putting a save back reports that the current save already matches" width="49%">
+</p>
 
-Emulator save data on Android is scattered across a dozen incompatible layouts. Some of it
-sits beside multi-gigabyte ROMs. Some of it sits in `Android/data`, where it is deleted on
-uninstall and unreadable by ordinary apps. There was no single tool that found all of it.
+The Backups pane checking a stored backup is intact, and the panes walked with L1/R1:
 
-On my own device, the saves worth keeping came to **730 MB out of 735 GB used** — about a
-tenth of a percent. Small, scattered, and irreplaceable.
+<p align="center">
+  <img src="docs/img/backups.gif" alt="Backups: Check it is intact downloads every archive the backup needs and compares every checksum, then reports that this backup is sound" width="49%">
+  <img src="docs/img/shell.gif" alt="R1 walks from Home to Games, Backups and Settings; the legend chips at the bottom name the buttons and can be tapped instead" width="49%">
+</p>
+
+<p align="center">
+  <img src="docs/img/home-help.png" alt="The What does this mean sheet on Home, explaining the state in plain language" width="49%">
+  <img src="docs/img/game.png" alt="A game page: emulator, size, where the save is kept, when it was last backed up, and the older saves that can be put back" width="49%">
+</p>
+<p align="center">
+  <img src="docs/img/settings.png" alt="Settings, When backups run: daily or weekly, only on charge and Wi-Fi" width="49%">
+  <img src="docs/img/onboarding.png" alt="The first beat of the walkthrough a new install opens with" width="49%">
+</p>
 
 ## What it does
 
-- **Finds saves by an auditable registry**, not guesswork. One JSON file lists every path
-  the app will ever touch, validated in CI. See [docs/TARGETS.md](docs/TARGETS.md).
-- **Reads `Android/data` on stock, non-rooted devices.** Android 11 closed that directory
-  to apps: `MANAGE_EXTERNAL_STORAGE` does not cover it and SAF cannot target it. With
-  optional [Shizuku](https://shizuku.rikka.app/), EmuBackup reaches it anyway — which is
-  where every GameCube, Wii, PS1 and legacy-Citra save lives. No root required.
-- **Made for a handheld.** Every screen works with a controller or by touch, in landscape
-  or portrait, and Home gives one plain answer: are your saves safe. See
-  [docs/DESIGN.md](docs/DESIGN.md) and [docs/INPUT.md](docs/INPUT.md).
-- **Backs up per game and per profile.** Restore one game for one profile, not everything.
-- **Versioned, incremental.** Only changed files are uploaded.
-- **Google Drive or a local folder.**
-- **Restores safely.** A mandatory dry-run diff, a snapshot of anything about to be
-  overwritten, and saves that are newer on the device are skipped unless you say otherwise.
+- **Finds saves by an auditable registry**, not guesswork. One JSON file lists every path the
+  app will ever touch, validated in CI. See [docs/TARGETS.md](docs/TARGETS.md).
+- **Reads `Android/data` on stock, non-rooted devices.** Android 11 closed that directory to
+  apps: `MANAGE_EXTERNAL_STORAGE` does not cover it and SAF cannot target it. With optional
+  [Shizuku](https://shizuku.rikka.app/), EmuBackup reaches it anyway, which is where every
+  GameCube, Wii, PS1 and legacy-Citra save lives. No root required.
+- **Names games, not folders.** Titles come from the ROM headers (3DS, GameCube, Wii, DS,
+  PSP) and profile names from the emulator's own files, so the list says *Mario Kart: Double
+  Dash!!* rather than a hex id.
+- **Backs up per game and per profile.** Put back one game for one profile, not everything.
+- **Versioned and incremental.** Only changed files are sent, in seconds after the first run.
+- **Google Drive, a folder you pick, or this device.** All three write the same tree.
+- **Restores safely.** A dry-run preview, a snapshot of anything about to be overwritten, and
+  saves that are newer on the device are skipped unless you say otherwise.
 - **Never locks you in.** Plain zips, a readable manifest, and a `RESTORE.txt` with the exact
-  commands to recover everything with nothing but `unzip`. See [docs/FORMAT.md](docs/FORMAT.md).
+  commands to recover everything with nothing but `unzip`. See
+  [docs/FORMAT.md](docs/FORMAT.md).
+- **Never implies success it has not verified.** Files it could not read are named in the
+  manifest and on screen, and a stored backup can be re-read and checksummed on demand.
 
-## Status
+## How it works
 
-Working for shared-storage saves, and verified on a real device: backup, hand-restore with
-nothing but `unzip`, in-app restore with a dry-run preview, and per-game breakdown.
+```
+ targets.json  -->  scan  -->  one zip per save folder + manifest.json  -->  Google Drive
+  (registry)      (shared +      (full, then incrementals that                a folder
+                  Shizuku)        chain back to a full)                       this device
+```
 
-App-private saves work too, through Shizuku, and are verified on hardware: backup, restore,
-and permissions matching what the emulator itself writes. Restoring *into* app-private
-storage still asks for confirmation, because it is the most invasive thing the app does.
+- The **registry** is a bundled JSON asset that names every emulator, path and glob. The
+  tests read the shipped file and fail CI on a malformed glob, a duplicate id, or a sensitive
+  target enabled by default. A power user can override it from a file on the SD card.
+- A **version** is one manifest plus one archive per save folder. The first is a full; later
+  ones hold only what changed and record which older versions they extract from, so pruning
+  never deletes a base that a kept version still needs.
+- **Check it is intact** reads every archive a version needs and compares every file's
+  recorded SHA-256. On Drive that means downloading it; a check that does not read the bytes
+  is not a check. **Export as one file** merges a version and its chain into one ordinary zip.
 
-One real limitation: some apps put their saves out of reach of `shell`, which is the identity
-Shizuku provides. DuckStation writes mode `600`; Amethyst group-owns its worlds itself. Only
-root would read those, and the app does not pretend otherwise — the files are listed in each
-backup's manifest and named after a run, never skipped silently.
-
-Google Drive works, over the raw REST API with a `drive.file` scope that can only see the app's
-own files. Backups can run on a schedule, daily or weekly, on charge and on Wi-Fi, and old
-versions are pruned once there are more than you asked to keep.
-
-## Design
-
-[docs/DESIGN.md](docs/DESIGN.md) is the design system, written before the code and cited by
-section from source comments. Dark-only, dense, and built on the premise that a backup tool
-must never imply success it has not verified.
-
-## Under the hood
-
-Deliberately built **without Gradle or Android Studio** — a hand-rolled, plain-SDK
-toolchain of three shell scripts:
-
-    ./vendor-libs.sh    curl the AARs it needs straight from Maven
-    ./test.sh           javac the android-free classes, run JUnit 5 on a plain JVM
-    ./build.sh          aapt2 -> aidl -> javac -> d8 -> zipalign -> apksigner
-
-Plain Java 17, Views and XML, no dependency injection, no coroutines, no Compose. About 45
-of the ~80 classes have zero `android.*` imports — including the backup and restore
-engines — so the logic that can lose your data is tested end to end on a JVM with no
-emulator. `test.sh` enforces that property rather than trusting it.
+The whole design, with the reasons behind each decision, is in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Install
 
-Download the APK from [Releases](https://github.com/tarikbc/emubackup/releases) and sideload it.
-Android will warn about installing from an unknown source; that is expected for an app that
-cannot be on the Play Store, for the reason in **Two things to know** below.
+Download `emubackup.apk` from the
+[latest release](https://github.com/tarikbc/emubackup/releases/latest) and sideload it:
 
-    adb install -r emubackup.apk
+```sh
+adb install -r emubackup.apk
+```
 
-## Build it yourself
+Android warns about installing from an unknown source. That is expected: the app needs
+all-files access, which keeps it off the Play Store.
 
-    git clone https://github.com/tarikbc/emubackup && cd emubackup
-    ./vendor-libs.sh
-    ./test.sh
-    ./build.sh
-    adb install -r build/emubackup.apk
-
-Requires JDK 17, the Android SDK with platform 34 and build-tools 35.0.0, and
-`ANDROID_HOME` set.
-
-Google Drive needs your own OAuth client, which you paste into the app under **Google Drive
-→ Set up Drive**; no rebuild is involved. See [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md).
-Without one the app uses a local folder and is fully functional. Release APKs carry no
-credentials, by a rule in the workflow rather than by convention, because a published APK
-cannot keep an OAuth secret and one shared client would put every user on one project.
+> **All-files access** is requested because emulator save folders are owned by other apps at
+> arbitrary paths, which scoped storage cannot reach.
+>
+> **Shizuku is optional, and it has a ceiling.** Without it you still get every save in shared
+> storage. With it you also get Dolphin, legacy Citra, Vita3K, aPS3e, GTA SA and Clone Hero.
+> You do not get DuckStation, which writes its cards mode `600`, or Minecraft worlds under
+> Amethyst, which are group-owned by the app; Shizuku grants the `shell` identity, not root.
+> EmuBackup names those files instead of skipping them silently, and Home offers to set the
+> folder aside once you have seen it. Measured counts are in
+> [docs/PROVENANCE.md](docs/PROVENANCE.md).
 
 ## First run
 
-A new install opens a short walkthrough rather than the hub: it explains what the app does,
-asks for the one permission it needs, and then shows what it found in **your** saves before
-asking for anything else. Destination comes next, Shizuku after that and only when something
-is actually locked, and it never blocks. It can be left at any point, and reopened from the
-Permissions screen.
+A new install opens a short walkthrough: what the app does, the one permission it needs,
+what it found in your saves, where to keep the backup, and Shizuku only if something is
+locked. It can be left at any point and reopened from Settings.
 
-On the device this was built for it reads:
+On the device it was built for, the Backups pane reads:
 
-    282 MB of saves
-    27 save sets, across 14 emulators.
-
-     143 MB  Eden (Nintendo Switch)
-      79 MB  Amethyst (Minecraft, Java)
-      41 MB  NetherSX2 / ArmsX2 (PlayStation 2)
-      12 MB  Azahar (Nintendo 3DS)
-       7 MB  PPSSPP (PSP)
-    and 9 more
+```
+282 MB · Google Drive · 112 games in 17 save folders
+18 archives checked, 125 MB read. Every one matches.
+```
 
 ## Where backups go
 
-Three destinations, and you can change between them at any time without losing anything:
-
 - **Google Drive.** Survives losing the device. Needs your own OAuth client, pasted into the
-  app, about ten minutes once. See [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md).
-- **A folder you pick.** An SD card, a USB drive, or a folder owned by a sync app such as
-  Dropbox or Nextcloud, in which case the backup leaves the device with no account involved.
-  No setup beyond picking it.
-- **This device.** A folder in internal storage. It survives an emulator wiping its own data,
-  which is the common way saves are lost, and nothing else.
+  app once; see [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md). The scope is `drive.file`, so
+  the app can only see files it created.
+- **A folder you pick.** An SD card, a USB drive, or a folder a sync app such as Nextcloud
+  owns, in which case the backup leaves the device with no account involved.
+- **This device.** Internal storage. It survives an emulator wiping its own data, which is
+  the common way saves are lost, and nothing else.
 
-All three write the identical tree, so a version written to one restores exactly like a
+Switching between them loses nothing: a version written to one restores exactly like a
 version written to another.
 
 ## Automatic backups
 
-Daily or weekly, through the framework `JobScheduler`, persisted across reboots, by default only
-on charge and on Wi-Fi. The work runs inside the job rather than in a foreground service, because
-Android 12 forbids starting one from the background and a schedule that only works while the app
-is open is not a schedule.
+Daily or weekly, through `JobScheduler`, persisted across reboots, by default only on charge
+and on Wi-Fi. A job has a bounded runtime, so the first backup of several hundred megabytes
+is run by hand from Home; every later run is an incremental measured in seconds.
 
-A job has a bounded runtime, roughly ten minutes. A first backup of several hundred megabytes can
-exceed it, so the Automatic backups screen says to run that one by hand; every later run is an
-incremental measured in seconds. If the system does stop a job, the attempt is recorded as a
-failure with that reason rather than disappearing.
+Three failed scheduled runs in a row turn the schedule off and raise a notification, because a
+job retrying quietly forever is worse than no backup. Every run, manual or scheduled, is in
+the run history under Settings, shareable as plain text.
 
-**Three failed scheduled runs in a row turn the schedule off** and raise a notification. A job
-retrying quietly forever is worse than no backup, because you believe you are covered. Every run,
-manual or scheduled, is in a log on that screen, shareable as plain text.
+## Keeping backups honest
 
-## What is included
+**What is included.** Game saves, always. Save states and emulator keys are off by default:
+states are large, tied to one emulator build and recreated by playing, and keys are not
+save data. Settings shows what each would cost on your device before you switch it on.
 
-Game saves, always. Two things are not, and both are one tap on the Automatic backups screen:
+**What is deleted.** Retention keeps the newest N versions, 20 by default. Three things are
+never removed: the newest version, the snapshots taken before a restore, and any version a
+kept version's chain extracts from.
 
-- **Save states** — 496 MB against 289 MB of real saves on my device. Large, tied to one emulator
-  build, and recreated by playing.
-- **Emulator keys** — not save data, and not always yours to copy.
+**What is reported.** A run that could not read a file says so, by name, on the finished
+screen and in the manifest. Restoring into app-private storage asks for confirmation, because
+it is the most invasive thing the app does.
 
-The screen shows what each would cost on *your* device, from the last scan, so the choice is made
-against a number rather than a guess.
+## Build from source
 
-## Checking a backup is still good
+Built without Gradle or Android Studio, from three shell scripts on the plain SDK:
 
-Writing a backup and reporting success says the bytes left the device. It does not say they are
-still there, still whole, or still reachable. **Check this backup is intact**, on any version,
-reads every archive that version needs and checks two things:
+```sh
+git clone https://github.com/tarikbc/emubackup && cd emubackup
+./vendor-libs.sh    # curl the AARs it needs straight from Maven
+./test.sh           # javac the android-free classes, run JUnit 5 on a plain JVM
+./build.sh          # aapt2 -> javac -> d8 -> zipalign -> apksigner
+adb install -r build/emubackup.apk
+```
 
-- every archive its chains extract from **exists**, including ones in much older versions
-- every archive still **hashes to what its manifest recorded**
+Requires JDK 17, the Android SDK with platform 34 and build-tools 35.0.0, and `ANDROID_HOME`
+set. Plain Java 17, Views built in code, no dependency injection, no coroutines, no Compose.
+71 of the 122 classes have no `android.*` imports, the backup and restore engines among
+them, so the logic that can lose data is tested end to end on a JVM. `test.sh` enforces that
+property rather than trusting it.
 
-It reads the bytes rather than trusting a size, so it catches truncation, a partial upload that
-was never finished, and a file replaced by something of the same length. On a Drive backup that
-means downloading the version; there is no cheaper way to know bytes are intact, and a check that
-does not read them is not a check.
+Release APKs carry no Google credentials, by a rule in the workflow rather than by
+convention. A published APK cannot keep an OAuth secret, and one shared client would put
+every user on one project. Google Drive therefore needs your own client, pasted into the
+app; no rebuild is involved.
 
-On my device: `18 archives checked, 125 MB read. Every one matches.`
+## Documentation
 
-## Taking a backup somewhere else
+| File | What it covers |
+| --- | --- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The design and the reasons: registry, engines, storage, Shizuku, screens |
+| [docs/DESIGN.md](docs/DESIGN.md) | The design system: identity, colour, type, layout, components, states, language |
+| [docs/INPUT.md](docs/INPUT.md) | The controller model, focus rules, and how to verify them over adb |
+| [docs/FORMAT.md](docs/FORMAT.md) | The on-disk backup format and how to restore by hand |
+| [docs/TARGETS.md](docs/TARGETS.md) | The save-location registry and its rules |
+| [docs/PROVENANCE.md](docs/PROVENANCE.md) | Every path, measured on a real device |
+| [docs/DRIVE_SETUP.md](docs/DRIVE_SETUP.md) | Creating your own Google OAuth client |
+| [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) | Vendored libraries and their licenses |
 
-**Export as one zip**, on any version, merges that version and everything its chains extract
-from into a single ordinary file. No chain to follow, nothing else to download: unzip it and the
-saves are there, one directory per target, with the manifest and a plain-English README beside
-them.
+## Layout
 
-Every file is checked against its recorded SHA-256 on the way in, so an export is also a check.
-Anything that fails is left out and named rather than written wrong, because a zip that unpacks
-into subtly corrupt saves is worse than one that is visibly short.
-
-## What gets deleted, and what never does
-
-Retention keeps the newest N versions, 20 by default. Three things are never removed:
-
-- **The newest version.** A store that prunes itself to empty is not a backup.
-- **Pre-restore snapshots**, which exist precisely because something was about to be overwritten.
-- **Any version a kept version's chain extracts from.** Deleting the full at the base of a chain
-  turns every incremental above it into an archive that restores to nothing, and the failure
-  would only appear at the moment the backup was needed.
-
-Each version records which versions its chains depend on, so pruning never has to guess and never
-has to download twenty manifests to find out. A version written before this was recorded is
-treated as depending on everything older than it, which is the conservative reading and resolves
-itself as those versions age out.
-
-## Two things to know
-
-**All-files access.** EmuBackup requests `MANAGE_EXTERNAL_STORAGE` because emulator save
-folders are owned by other apps at arbitrary paths, which scoped storage cannot reach. That
-permission also makes Play Store distribution impractical, which is fine — this is a
-sideloaded APK.
-
-**Shizuku is optional, and it has a ceiling.** Without it you still get every save in shared
-storage, which on my device is 700 of the 730 MB. With it you additionally get Dolphin, legacy
-Citra, Vita3K, aPS3e, GTA SA and Clone Hero.
-
-You do **not** get DuckStation. It writes its memory cards and save states mode `600`, so only
-their owner can read them, and Shizuku grants the `shell` identity rather than root. Minecraft
-worlds under Amethyst are group-owned by the app rather than by `ext_data_rw`, which blocks them
-the same way. Measured counts for every app-private target are in
-[docs/PROVENANCE.md](docs/PROVENANCE.md).
-
-EmuBackup does not paper over this. Unreadable files are listed by name in each manifest's
-`skipped` array and named on screen when a run finishes, so an incomplete backup says so instead
-of looking like a complete one. Shizuku must also be re-activated after each reboot, and the app
-tells you when app-private saves are going stale.
+```
+src/main/java/com/tarikbc/emubackup/   one flat package: engines, panes, shell, helpers
+src/main/assets/targets.json           the save-location registry
+src/main/res/                          vector icons (Lucide), colours, the launcher icon
+test/java/                             JUnit 5 tests for the android-free classes
+tools/vendor-icons.py                  SVG -> VectorDrawable, no dependencies
+docs/                                  ARCHITECTURE, DESIGN, INPUT, FORMAT, TARGETS, ...
+build.sh  test.sh  vendor-libs.sh      the whole toolchain
+.github/workflows/build.yml            build on push; sign and release on a v* tag
+```
 
 ## Credits
 
 [Shizuku](https://github.com/RikkaApps/Shizuku) by RikkaApps for privileged access without
-root. The emulator authors whose save layouts this maps.
+root. Icons from [Lucide](https://lucide.dev/) (ISC). The emulator authors whose save layouts
+this maps.
 
 Not affiliated with any emulator project or with Google. Bring your own games.
 
