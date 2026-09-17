@@ -46,17 +46,22 @@ public final class LegendBar extends LinearLayout {
             item.setOrientation(HORIZONTAL);
             item.setGravity(Gravity.CENTER_VERTICAL);
             String[] buttons = pairs[i].split("/");
+            // Tappable, never focusable: a click listener makes a view focusable by default,
+            // and the D-pad would then walk off the last row of a pane into the legend.
             for (String b : buttons) {
                 TextView chip = chip(b);
                 chip.setOnClickListener(v -> press(b));
+                chip.setFocusable(false);
                 item.addView(chip);
             }
             TextView label = label(pairs[i + 1]);
             // The meaning presses the last chip of the group: "Sections" goes forward.
             label.setOnClickListener(v -> press(buttons[buttons.length - 1]));
+            label.setFocusable(false);
             item.addView(label);
             // The group's own padding presses the same as its meaning, so no tap falls between.
             item.setOnClickListener(v -> press(buttons[buttons.length - 1]));
+            item.setFocusable(false);
             item.setBackgroundResource(R.drawable.rail_row);
             int p = dp(4);
             item.setPadding(p, p, p, p);

@@ -145,6 +145,8 @@ public final class RunView extends FrameLayout {
         }
         primary(true);
         onButton("Close", onClose);
-        button.post(button::requestFocus);
+        // From a key, so it takes in touch mode too; otherwise the first A press only focuses
+        // Close and a second one is needed to leave (docs/INPUT.md, touch mode).
+        button.post(() -> Ui.focus(button, true));
     }
 }

@@ -211,6 +211,9 @@ public class ShellActivity extends GamepadActivity {
     }
 
     private void show(Dest d, boolean focusPane) {
+        // A sheet belongs to its pane. Left up while the pane goes off screen, its focus fence
+        // stays on the rail and the other panes, and no key lands anywhere afterwards.
+        if (current != null) pane().dismissSheet();
         current = d;
         for (Dest x : Dest.values()) {
             TextView row = placeRows[x.ordinal()];
