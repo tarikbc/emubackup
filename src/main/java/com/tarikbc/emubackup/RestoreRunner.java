@@ -146,7 +146,14 @@ public final class RestoreRunner {
                     new ArchiveReader.Listener() {
                         @Override public void onFile(String p, int i, int n, long bd, long bt) {
                             listener.onProgress(new Progress(Progress.Phase.ARCHIVING, plan.targetId,
-                                    label, fIdx, fCount, p, i, n, bd, bt, null));
+                                    label, fIdx, fCount, p, i, n, bd, bt, "Writing " + basename(p)));
+                        }
+                        @Override public void onArchive(String v, String a, long read) {
+                            // No total: the store may not say how big the archive is. Bytes read
+                            // is still a number that moves, which is what a person watching needs.
+                            listener.onProgress(new Progress(Progress.Phase.ARCHIVING, plan.targetId,
+                                    label, fIdx, fCount, null, 0, 0, read, 0,
+                                    "Reading the backup of " + label + "\u2026"));
                         }
                         @Override public boolean isCancelled() { return listener.isCancelled(); }
                     });
@@ -161,6 +168,11 @@ public final class RestoreRunner {
         listener.onProgress(Progress.of(cancelled ? Progress.Phase.CANCELLED : Progress.Phase.DONE,
                 written + " files restored"));
         return new Result(snapshotId, snapshotManifest, written, bytes, cancelled, missing, corrupt, failures);
+    }
+
+    private static String basename(String path) {
+        int cut = path.lastIndexOf('/');
+        return cut < 0 ? path : path.substring(cut + 1);
     }
 
     /**
@@ -179,7 +191,19 @@ public final class RestoreRunner {
         }
         if (perTarget.isEmpty()) return null;
 
-        listener.onProgress(Progress.of(Progress.Phase.ARCHIVING, "Saving what is about to change"));
+        int count = 0;
+        long bytes = 0;
+        List<String> names = new ArrayList<>();
+        for (List<RestoreItem> over : perTarget.values()) {
+            for (RestoreItem i : over) {
+                count++;
+                bytes += i.device.size;
+                names.add(basename(i.path));
+            }
+        }
+        listener.onProgress(Progress.of(Progress.Phase.ARCHIVING, "Saving a safety copy of "
+                + (count <= 3 ? String.join(", ", names) : count + " files") + " (" + Sizes.human(bytes)
+                + ") before anything is replaced\u2026"));
 
         BackupIndex index = loadIndex();
         String vid = VersionId.next(index.highestCounter(), nowMs).id() + "-prerestore";

@@ -45,16 +45,7 @@ public final class ManifestCache {
     /** Stores a manifest the app has just produced, so it is never fetched back. */
     public void put(Manifest m) {
         if (m == null) return;
-        try {
-            File tmp = new File(dir, m.version + ".part");
-            Files.write(tmp.toPath(), m.toJson().getBytes(StandardCharsets.UTF_8));
-            if (!tmp.renameTo(fileFor(m.version))) {
-                //noinspection ResultOfMethodCallIgnored
-                tmp.delete();
-            }
-        } catch (IOException ignored) {
-            // A cache miss later costs a download, not correctness.
-        }
+        write(m.version, m.toJson());
     }
 
     /** The cached manifest, or fetched from the store and cached. */
@@ -64,16 +55,34 @@ public final class ManifestCache {
             try {
                 return Manifest.fromJson(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
             } catch (Exception corrupt) {
+                android.util.Log.w("EmuBackup", "manifest cache: " + f.getName() + " unreadable, refetching: " + corrupt);
                 //noinspection ResultOfMethodCallIgnored
                 f.delete();
             }
         }
-        Manifest m;
+        String json;
         try (InputStream in = store.openFile(versionId, "manifest.json")) {
-            m = Manifest.fromJson(BackupRunner.readAll(in));
+            json = BackupRunner.readAll(in);
         }
-        put(m);
+        Manifest m = Manifest.fromJson(json);
+        // The bytes as the store holds them, not a re-serialisation: what parsed once parses again.
+        write(versionId, json);
         return m;
+    }
+
+    private void write(String versionId, String json) {
+        try {
+            File tmp = new File(dir, versionId + ".part");
+            Files.write(tmp.toPath(), json.getBytes(StandardCharsets.UTF_8));
+            if (!tmp.renameTo(fileFor(versionId))) {
+                android.util.Log.w("EmuBackup", "manifest cache: could not place " + fileFor(versionId));
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        } catch (IOException e) {
+            // A cache miss later costs a download, not correctness.
+            android.util.Log.w("EmuBackup", "manifest cache: could not write " + versionId + ": " + e);
+        }
     }
 
     /** Drops cached manifests for versions no longer in the index. */
@@ -83,6 +92,8 @@ public final class ManifestCache {
         File[] files = dir.listFiles();
         if (files == null) return;
         for (File f : files) {
+            // The remembered index lives beside the manifests and is not one of them.
+            if (BackupIndex.FILE_NAME.equals(f.getName())) continue;
             if (f.getName().endsWith(".json") && !keep.contains(f.getName())) {
                 //noinspection ResultOfMethodCallIgnored
                 f.delete();

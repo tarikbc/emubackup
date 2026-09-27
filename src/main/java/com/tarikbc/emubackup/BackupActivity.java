@@ -108,7 +108,11 @@ public class BackupActivity extends GamepadActivity implements BackupService.Lis
             case CANCELLED: run.phase("Stopped"); break;
             case FAILED: run.phase("Failed"); break;
         }
-        if (p.targetLabel != null) {
+        // The sentence about what is happening wins over the folder's name: a person watching
+        // a bar for a minute needs "Reading the backup of Game saves…", not "Game saves (1 of 1)".
+        if (p.message != null && restoreMode) {
+            run.item(p.message);
+        } else if (p.targetLabel != null) {
             run.item(p.targetCount > 0 ? p.targetLabel + " (" + p.targetIndex + " of " + p.targetCount + ")"
                     : p.targetLabel);
         } else if (p.phase == Progress.Phase.WRITING_MANIFEST) {
@@ -121,6 +125,7 @@ public class BackupActivity extends GamepadActivity implements BackupService.Lis
         String countText = null;
         if (p.filesTotal > 0) countText = p.filesDone + " of " + p.filesTotal + " files";
         else if (p.bytesTotal > 0) countText = Sizes.human(p.bytesDone) + " of " + Sizes.human(p.bytesTotal);
+        else if (p.bytesDone > 0) countText = Sizes.human(p.bytesDone) + " read";
         run.progress(pc < 0 ? -1 : pc, 100, countText);
     }
 }

@@ -47,18 +47,62 @@ public final class DriveSink implements BackupSink {
         return "Google Drive / " + ROOT_FOLDER;
     }
 
+    /**
+     * The root folder's id, once found, for every sink this process makes. {@code Stores.active}
+     * builds a fresh sink per call and each lookup is a round trip, five seconds on a slow link.
+     * A folder id does not change; if it ever stops resolving the next listing fails, the cache
+     * is dropped, and the call after that looks it up again.
+     */
+    private static volatile String knownRootId;
+
     private String root() throws IOException {
-        if (rootId == null) rootId = api.ensureFolder(ROOT_FOLDER, null);
+        if (rootId == null) {
+            String known = knownRootId;
+            if (known == null) {
+                known = api.ensureFolder(ROOT_FOLDER, null);
+                knownRootId = known;
+            }
+            rootId = known;
+        }
         return rootId;
+    }
+
+    /** A listing under the root failed: the remembered id may be stale, so forget it. */
+    private static void forgetRoot() {
+        knownRootId = null;
     }
 
     private String versionFolder(String versionId) throws IOException {
         String id = folderIds.get(versionId);
         if (id == null) {
-            id = api.ensureFolder(versionId, root());
+            try {
+                id = api.ensureFolder(versionId, rootChecked());
+            } catch (IOException e) {
+                forgetRoot();
+                throw e;
+            }
             folderIds.put(versionId, id);
         }
         return id;
+    }
+
+    /** The root id, dropped from the process-wide cache when a listing under it fails. */
+    private List<DriveApi.RemoteFile> listRoot() throws IOException {
+        try {
+            return api.listFolder(root());
+        } catch (IOException e) {
+            forgetRoot();
+            throw e;
+        }
+    }
+
+    private String rootChecked() throws IOException {
+        try {
+            return root();
+        } catch (IOException e) {
+            forgetRoot();
+            throw e;
+        }
     }
 
     @Override public void ensureVersion(String versionId) throws IOException {
@@ -121,7 +165,7 @@ public final class DriveSink implements BackupSink {
     @Override public InputStream openFile(String versionId, String name) throws IOException {
         DriveApi.RemoteFile f = find(versionId, name);
         if (f == null) throw new IOException("not in Drive: " + versionId + "/" + name);
-        return api.download(f.id);
+        return api.download(f.id, f.size);
     }
 
     @Override public boolean hasFile(String versionId, String name) {
@@ -134,7 +178,7 @@ public final class DriveSink implements BackupSink {
 
     @Override public List<String> listVersions() throws IOException {
         List<String> out = new ArrayList<>();
-        for (DriveApi.RemoteFile f : api.listFolder(root())) {
+        for (DriveApi.RemoteFile f : listRoot()) {
             if (f.name != null && VersionId.looksLikeOne(f.name)) out.add(f.name);
         }
         java.util.Collections.sort(out);
@@ -154,10 +198,15 @@ public final class DriveSink implements BackupSink {
             o.write(body);
         }
         try {
-            for (DriveApi.RemoteFile f : api.listFolder(root())) {
+            for (DriveApi.RemoteFile f : listRoot()) {
                 if (name.equals(f.name)) api.delete(f.id);
             }
-            api.upload(root(), name, tmp, DriveApi.props("root", null, kindOf(name)), DriveApi.SILENT);
+            try {
+                api.upload(rootChecked(), name, tmp, DriveApi.props("root", null, kindOf(name)), DriveApi.SILENT);
+            } catch (IOException e) {
+                forgetRoot();
+                throw e;
+            }
         } finally {
             //noinspection ResultOfMethodCallIgnored
             tmp.delete();
@@ -165,9 +214,9 @@ public final class DriveSink implements BackupSink {
     }
 
     @Override public byte[] readRootFile(String name) throws IOException {
-        for (DriveApi.RemoteFile f : api.listFolder(root())) {
+        for (DriveApi.RemoteFile f : listRoot()) {
             if (name.equals(f.name)) {
-                try (InputStream in = api.download(f.id)) {
+                try (InputStream in = api.download(f.id, f.size)) {
                     // Bytes, not a decoded String re-encoded. The interface returns bytes and the
                     // round trip through UTF-8 is lossless only for text that happens to be valid
                     // UTF-8. It is, today, for index.json and RESTORE.txt. The first root file
@@ -176,7 +225,7 @@ public final class DriveSink implements BackupSink {
                 }
             }
         }
-        throw new IOException("not in Drive: " + name);
+        throw new java.io.FileNotFoundException("not in Drive: " + name);
     }
 
     private static byte[] readFully(InputStream in) throws IOException {
@@ -189,7 +238,7 @@ public final class DriveSink implements BackupSink {
 
     @Override public boolean hasRootFile(String name) {
         try {
-            for (DriveApi.RemoteFile f : api.listFolder(root())) {
+            for (DriveApi.RemoteFile f : listRoot()) {
                 if (name.equals(f.name)) return true;
             }
         } catch (IOException ignored) {
@@ -209,6 +258,10 @@ public final class DriveSink implements BackupSink {
     // ------------------------------------------------------------------ helpers
 
     private DriveApi.RemoteFile find(String versionId, String name) throws IOException {
+        // Every upload is tagged with its version, so ask for the file outright. The folder walk
+        // remains for anything uploaded without tags.
+        DriveApi.RemoteFile tagged = api.findByVersion(versionId, name);
+        if (tagged != null) return tagged;
         for (DriveApi.RemoteFile f : api.listFolder(versionFolder(versionId))) {
             if (name.equals(f.name)) return f;
         }

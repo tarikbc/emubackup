@@ -218,4 +218,39 @@ class RestoreRunnerTest {
         assertEquals("v2-1", read(ext.resolve("saves/f1.dat")), "the changed file came from the increment");
         assertEquals("v1-2", read(ext.resolve("saves/f2.dat")), "the rest came from the base full");
     }
+
+    @Test
+    @DisplayName("progress says what it is doing: the safety copy by name, the archive being read, the file written")
+    void progressIsDescriptive(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/game1/save.dat"), "important progress");
+        BackupRunner.Result b = backupRunner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/game1/save.dat"), "overwritten since");
+        ext.resolve("saves/game1/save.dat").toFile().setLastModified(500L);
+
+        List<Progress> seen = new ArrayList<>();
+        RestoreRunner.Listener listener = new RestoreRunner.Listener() {
+            @Override public void onProgress(Progress p) { seen.add(p); }
+            @Override public boolean isCancelled() { return false; }
+        };
+        restoreRunner(sink).run(b.manifest, Arrays.asList(planAll(b.manifest, ext, "saves")), 2_000L, listener);
+
+        boolean safety = false, reading = false, writing = false;
+        for (Progress p : seen) {
+            if (p.message != null && p.message.contains("safety copy") && p.message.contains("save.dat")) safety = true;
+            if (p.message != null && p.message.startsWith("Reading the backup") && p.bytesDone > 0) reading = true;
+            if (p.message != null && p.message.startsWith("Writing") && "game1/save.dat".equals(p.fileName)) writing = true;
+        }
+        assertTrue(safety, "the safety copy should name the file it saves: " + messages(seen));
+        assertTrue(reading, "reading the archive should report bytes read: " + messages(seen));
+        assertTrue(writing, "writing a file should say so, with the file: " + messages(seen));
+    }
+
+    private static String messages(List<Progress> seen) {
+        StringBuilder b = new StringBuilder();
+        for (Progress p : seen) b.append(p.phase).append(' ').append(p.message).append(' ').append(p.fileName)
+                .append(' ').append(p.bytesDone).append("; ");
+        return b.toString();
+    }
 }

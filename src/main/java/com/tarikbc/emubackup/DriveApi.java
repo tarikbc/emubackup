@@ -134,6 +134,24 @@ public final class DriveApi {
         return out;
     }
 
+    /**
+     * One file by the properties every upload carries ({@link #props}): the version it belongs
+     * to and its name. One round trip instead of a root listing, a version-folder listing and
+     * a match, which on a handheld's Wi-Fi is the difference between two seconds and a minute.
+     * Null when nothing matches, and then the caller may still walk the folders.
+     */
+    public RemoteFile findByVersion(String version, String name) throws IOException {
+        String q = "appProperties has { key='eb.version' and value='" + escapeQuery(version) + "' }"
+                + " and name='" + escapeQuery(name) + "' and trashed=false";
+        String url = FILES + "?q=" + enc(q) + "&fields=" + enc("files(id,name,size)") + "&pageSize=2";
+        JSONObject o = json(get(url));
+        JSONArray a = o.optJSONArray("files");
+        if (a == null || a.length() == 0) return null;
+        JSONObject f = a.optJSONObject(0);
+        return f == null ? null : new RemoteFile(f.optString("id", null), f.optString("name", null),
+                f.optLong("size", 0));
+    }
+
     public void delete(String fileId) throws IOException {
         HttpURLConnection c = open(FILES + "/" + fileId, "DELETE");
         int code = c.getResponseCode();
@@ -143,8 +161,29 @@ public final class DriveApi {
         c.disconnect();
     }
 
+    /** A file at or under this many bytes is fetched like metadata: short timeout, one retry. */
+    static final long SMALL_FILE_BYTES = 4L * 1024 * 1024;
+
     public InputStream download(String fileId) throws IOException {
-        HttpURLConnection c = open(FILES + "/" + fileId + "?alt=media", "GET");
+        return download(fileId, Long.MAX_VALUE);
+    }
+
+    /**
+     * @param sizeHint the file's size when known. A manifest or an index is a quarter megabyte
+     *                 and must not wait two minutes on a stalled socket; an archive may.
+     */
+    public InputStream download(String fileId, long sizeHint) throws IOException {
+        boolean small = sizeHint <= SMALL_FILE_BYTES;
+        try {
+            return downloadOnce(fileId, small ? METADATA_TIMEOUT_MS : TRANSFER_TIMEOUT_MS);
+        } catch (java.net.SocketTimeoutException first) {
+            if (!small) throw first;
+            return downloadOnce(fileId, METADATA_TIMEOUT_MS);
+        }
+    }
+
+    private InputStream downloadOnce(String fileId, int readTimeoutMs) throws IOException {
+        HttpURLConnection c = open(FILES + "/" + fileId + "?alt=media", "GET", readTimeoutMs);
         // Without this the stack advertises gzip and transparently inflates, which makes
         // Content-Length meaningless for progress reporting.
         c.setRequestProperty("Accept-Encoding", "identity");
@@ -244,7 +283,7 @@ public final class DriveApi {
             throw new IOException(e);
         }
 
-        HttpURLConnection c = open(UPLOAD + "?uploadType=resumable&fields=id", "POST");
+        HttpURLConnection c = open(UPLOAD + "?uploadType=resumable&fields=id", "POST", TRANSFER_TIMEOUT_MS);
         c.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
         c.setRequestProperty("X-Upload-Content-Type", mimeFor(name));
         c.setRequestProperty("X-Upload-Content-Length", String.valueOf(total));
@@ -269,7 +308,7 @@ public final class DriveApi {
         int len = (int) Math.min(CHUNK_BYTES, total - offset);
         if (len <= 0) return queryStatus(session, total);
 
-        HttpURLConnection c = open(session, "PUT");
+        HttpURLConnection c = open(session, "PUT", TRANSFER_TIMEOUT_MS);
         c.setRequestProperty("Content-Range",
                 "bytes " + offset + "-" + (offset + len - 1) + "/" + total);
         c.setDoOutput(true);
@@ -412,11 +451,24 @@ public final class DriveApi {
 
     // ------------------------------------------------------------------ plumbing
 
+    /** How long a metadata call (a listing, a lookup) may sit with no reply. */
+    static final int METADATA_TIMEOUT_MS = 30_000;
+    /** How long a transfer (a download, an upload chunk) may sit with no reply. */
+    static final int TRANSFER_TIMEOUT_MS = 120_000;
+
     private HttpURLConnection open(String url, String method) throws IOException {
+        return open(url, method, METADATA_TIMEOUT_MS);
+    }
+
+    /**
+     * @param readTimeoutMs a metadata call gets {@link #METADATA_TIMEOUT_MS}: a stuck listing
+     *                      must not hold a screen for two minutes. Transfers keep the long one.
+     */
+    private HttpURLConnection open(String url, String method, int readTimeoutMs) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setRequestMethod(method);
-        c.setConnectTimeout(30_000);
-        c.setReadTimeout(120_000);
+        c.setConnectTimeout(15_000);
+        c.setReadTimeout(readTimeoutMs);
         // Mandatory. 308 is "Permanent Redirect" in HTTP terms, and the underlying stack will
         // happily follow it, destroying the resumable protocol in a way that is baffling to debug.
         c.setInstanceFollowRedirects(false);
@@ -424,7 +476,19 @@ public final class DriveApi {
         return c;
     }
 
+    /**
+     * A listing or lookup. One retry on a timeout: on a handheld's Wi-Fi a single request can
+     * stall while the next one sails through, and a stalled listing is not worth a blank screen.
+     */
     private String get(String url) throws IOException {
+        try {
+            return getOnce(url);
+        } catch (java.net.SocketTimeoutException first) {
+            return getOnce(url);
+        }
+    }
+
+    private String getOnce(String url) throws IOException {
         HttpURLConnection c = open(url, "GET");
         int code = c.getResponseCode();
         if (code == 401) {

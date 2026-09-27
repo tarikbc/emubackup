@@ -147,7 +147,7 @@ public class BackupService extends Service {
             }
         } catch (Exception e) {
             failed = true;
-            summary = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            summary = plainWords(e, "This backup was not recorded; the last good one is untouched.");
             publish(Progress.of(Progress.Phase.FAILED, summary));
         }
 
@@ -215,7 +215,8 @@ public class BackupService extends Service {
             publish(Progress.of(r.cancelled ? Progress.Phase.CANCELLED : Progress.Phase.DONE, summary));
         } catch (Exception e) {
             failed = true;
-            summary = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            summary = plainWords(e, "Nothing on the device was changed; the restore writes only "
+                    + "after the whole backup has been read.");
             publish(Progress.of(Progress.Phase.FAILED, summary));
         }
 
@@ -240,11 +241,39 @@ public class BackupService extends Service {
     private BackupSink chooseSink() throws java.io.IOException {
         return Stores.active(this, new DriveApi.ProgressListener() {
             @Override public void onProgress(long sent, long total) {
-                publish(new Progress(Progress.Phase.ARCHIVING, null, "Uploading", 0, 0,
-                        null, 0, 0, sent, total, null));
+                publish(new Progress(Progress.Phase.ARCHIVING, null,
+                        restoring ? "Uploading the safety copy" : "Uploading", 0, 0,
+                        null, 0, 0, sent, total,
+                        restoring ? "Uploading the safety copy to " + whereName() + "\u2026" : null));
             }
             @Override public boolean isCancelled() { return cancelRequested; }
         });
+    }
+
+    /**
+     * A failure in words a person can act on. "timeout" is what the socket said; what happened
+     * is that the store stopped answering, and what to do is try again on a better connection.
+     */
+    private String plainWords(Exception e, String consequence) {
+        String raw = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        boolean network = e instanceof java.net.SocketTimeoutException
+                || e instanceof java.net.UnknownHostException
+                || e instanceof java.net.ConnectException
+                || raw.toLowerCase(java.util.Locale.ROOT).contains("timeout");
+        if (network) {
+            return whereName() + " stopped answering (" + raw + "). " + consequence
+                    + " Check the connection and try again.";
+        }
+        return raw;
+    }
+
+    /** Where the store is, in the words the rest of the app uses. */
+    private String whereName() {
+        switch (Destination.effective(this)) {
+            case DRIVE: return "Google Drive";
+            case FOLDER: return Destination.folderLabel(this);
+            default: return "this device";
+        }
     }
 
     private void publish(Progress p) {

@@ -52,7 +52,9 @@ public final class DriveTokens implements DriveApi.TokenSource {
         String refresh = store.load();
         if (refresh == null) throw new IOException("Google Drive is not linked");
 
+        long t0 = System.currentTimeMillis();
         DeviceCodeAuth.Tokens t = auth.refresh(refresh, now);
+        android.util.Log.d("EmuBackup", "drive token refresh took " + (System.currentTimeMillis() - t0) + " ms");
         cached = t.accessToken;
         cachedExpiresAtMs = t.expiresAtMs;
         // Google returns a new refresh token only occasionally; persist it when it does.

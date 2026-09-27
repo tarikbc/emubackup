@@ -40,10 +40,17 @@ public final class RestoreSession {
         public final List<IndexEntry> list;
         /** Null when the store was read. Otherwise why it could not be, in plain words. */
         public final String error;
+        /** True when {@link #list} is the last index this device read, because the store is unreachable now. */
+        public final boolean stale;
 
         Versions(List<IndexEntry> list, String error) {
+            this(list, error, false);
+        }
+
+        Versions(List<IndexEntry> list, String error, boolean stale) {
             this.list = list;
             this.error = error;
+            this.stale = stale;
         }
 
         public boolean reachable() {
@@ -64,11 +71,23 @@ public final class RestoreSession {
      * person deciding whether to trust their backups needs to know which one they are looking at.
      */
     public static Versions listVersions(Context ctx) {
+        long t0 = System.currentTimeMillis();
         try {
             BackupSink s = Stores.active(ctx);
-            if (s.hasRootFile(BackupIndex.FILE_NAME)) {
-                return new Versions(BackupIndex.fromJson(new String(s.readRootFile(BackupIndex.FILE_NAME),
-                        java.nio.charset.StandardCharsets.UTF_8)).versions(), null);
+            // Read the index outright rather than asking whether it exists first: on Drive each
+            // question is a listing of the root folder, and one of those is enough.
+            byte[] index = null;
+            try {
+                index = s.readRootFile(BackupIndex.FILE_NAME);
+            } catch (java.io.FileNotFoundException absent) {
+                // No index yet: an old store, or an empty one. Rebuilt from the manifests below.
+            }
+            if (index != null) {
+                String json = new String(index, java.nio.charset.StandardCharsets.UTF_8);
+                List<IndexEntry> list = BackupIndex.fromJson(json).versions();
+                rememberIndex(ctx, json);
+                android.util.Log.d("EmuBackup", "store: index read after " + (System.currentTimeMillis() - t0) + " ms");
+                return new Versions(list, null);
             }
             List<Manifest> all = new ArrayList<>();
             for (String v : s.listVersions()) {
@@ -81,7 +100,43 @@ public final class RestoreSession {
             return new Versions(BackupIndex.rebuildFrom(all).versions(), null);
         } catch (Exception e) {
             String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            return new Versions(new ArrayList<>(), why);
+            android.util.Log.d("EmuBackup", "store: unreachable after " + (System.currentTimeMillis() - t0) + " ms: " + why);
+            // The manifests are already local (ManifestCache), so the last index this device read
+            // is enough to keep every game's history on screen while the store is out of reach.
+            List<IndexEntry> remembered = rememberedIndex(ctx);
+            return new Versions(remembered, why, !remembered.isEmpty());
+        }
+    }
+
+    private static java.io.File indexCache(Context ctx) {
+        java.io.File dir = new java.io.File(new java.io.File(ctx.getFilesDir(), "manifests"), Stores.key(ctx));
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        return new java.io.File(dir, BackupIndex.FILE_NAME);
+    }
+
+    private static void rememberIndex(Context ctx, String json) {
+        try {
+            java.io.File f = indexCache(ctx);
+            java.io.File tmp = new java.io.File(f.getPath() + ".part");
+            java.nio.file.Files.write(tmp.toPath(), json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            if (!tmp.renameTo(f)) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        } catch (Exception ignored) {
+            // A cache miss later costs a blank history while offline, not correctness.
+        }
+    }
+
+    private static List<IndexEntry> rememberedIndex(Context ctx) {
+        try {
+            java.io.File f = indexCache(ctx);
+            if (!f.isFile()) return new ArrayList<>();
+            return BackupIndex.fromJson(new String(java.nio.file.Files.readAllBytes(f.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8)).versions();
+        } catch (Exception corrupt) {
+            return new ArrayList<>();
         }
     }
 
@@ -97,15 +152,26 @@ public final class RestoreSession {
      */
     public static RestoreSession load(Context ctx, String versionId,
                                       java.util.Map<String, java.util.Set<String>> filter) {
+        return load(ctx, versionId, filter, HomeModel.QUIET);
+    }
+
+    /**
+     * @param note where the comparison is, in words: reading the backup's file list (from the
+     *             local cache when it has been read before, else from the store), then checking
+     *             the device's files
+     */
+    public static RestoreSession load(Context ctx, String versionId,
+                                      java.util.Map<String, java.util.Set<String>> filter,
+                                      HomeModel.Note note) {
         ShizukuGate.Status shizuku = ShizukuGate.connect(ctx);
         Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
                 DriveClient.of(ctx).configured());
         try {
+            ManifestCache cache = new ManifestCache(ctx);
+            note.say(cache.has(versionId) ? "Reading the backup's file list\u2026"
+                    : "Reading the backup's file list from " + describeStore(ctx) + "\u2026");
             BackupSink s = Stores.active(ctx);
-            Manifest m;
-            try (InputStream in = s.openFile(versionId, "manifest.json")) {
-                m = Manifest.fromJson(BackupRunner.readAll(in));
-            }
+            Manifest m = cache.get(s, versionId);
 
             TargetRegistry reg = TargetRegistry.parse(Assets.readString(ctx, "targets.json"));
             LocalFileSource src = new LocalFileSource();
@@ -126,6 +192,7 @@ public final class RestoreSession {
                 List<FileStat> onDevice = new ArrayList<>();
                 if (writable && reader != null && reader.exists(mt.root)) {
                     try {
+                        note.say("Checking " + label + " on this device\u2026");
                         onDevice = reader.walk(mt.root, true);
                     } catch (Exception ignored) {
                         // Unreadable root. Treated as empty, which makes every file a CREATE and

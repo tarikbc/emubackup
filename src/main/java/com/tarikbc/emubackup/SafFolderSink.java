@@ -208,7 +208,7 @@ public final class SafFolderSink implements BackupSink {
 
     @Override public byte[] readRootFile(String name) throws IOException {
         String id = childId(rootId(), name, false);
-        if (id == null) throw new IOException("not in the backup folder: " + name);
+        if (id == null) throw new java.io.FileNotFoundException("not in the backup folder: " + name);
         try (InputStream in = resolver.openInputStream(docUri(id))) {
             if (in == null) throw new IOException("could not open " + name);
             ByteArrayOutputStream out = new ByteArrayOutputStream();

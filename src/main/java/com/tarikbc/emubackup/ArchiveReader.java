@@ -26,7 +26,16 @@ public final class ArchiveReader {
     public interface Listener {
         void onFile(String path, int index, int total, long bytesDone, long bytesTotal);
         boolean isCancelled();
+
+        /**
+         * The archive is being read through, {@code bytesRead} so far. A wanted file can sit
+         * anywhere in a zip that has to be streamed from the start, so this is the only sign of
+         * life between opening the archive and the first file. Every quarter megabyte.
+         */
+        default void onArchive(String versionId, String archive, long bytesRead) {}
     }
+
+    private static final long REPORT_EVERY = 256 * 1024;
 
     public static final Listener SILENT = new Listener() {
         @Override public void onFile(String p, int i, int n, long d, long t) {}
@@ -103,8 +112,42 @@ public final class ArchiveReader {
             String archive = ref.substring(slash + 1);
 
             String inFlight = null;
+            final String vId = versionId, aName = archive;
+            listener.onArchive(vId, aName, 0);
             try (InputStream raw = sink.openFile(versionId, archive);
-                 ZipInputStream zin = new ZipInputStream(raw)) {
+                 InputStream counted = new java.io.FilterInputStream(raw) {
+                     long total, lastReported;
+
+                     private void count(long n) {
+                         if (n <= 0) return;
+                         total += n;
+                         // The first bytes at once (a small archive never reaches the step),
+                         // then every step.
+                         if (lastReported == 0 || total - lastReported >= REPORT_EVERY) {
+                             lastReported = total;
+                             listener.onArchive(vId, aName, total);
+                         }
+                     }
+
+                     @Override public int read() throws IOException {
+                         int b = in.read();
+                         if (b >= 0) count(1);
+                         return b;
+                     }
+
+                     @Override public int read(byte[] b, int off, int len) throws IOException {
+                         int n = in.read(b, off, len);
+                         count(n);
+                         return n;
+                     }
+
+                     @Override public long skip(long n) throws IOException {
+                         long s = in.skip(n);
+                         count(s);
+                         return s;
+                     }
+                 };
+                 ZipInputStream zin = new ZipInputStream(counted)) {
                 ZipEntry ze;
                 while ((ze = zin.getNextEntry()) != null) {
                     if (listener.isCancelled()) { cancelled = true; break; }
