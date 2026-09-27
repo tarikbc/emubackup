@@ -76,4 +76,19 @@ class GameArtTest {
         assertTrue(b.build().isEmpty());
         assertTrue(GameArt.Index.EMPTY.isEmpty());
     }
+
+    @Test
+    @DisplayName("a ROM whose name carries no id is still found by the id read from its header")
+    void headerIdKeysArt(@TempDir Path tmp) throws Exception {
+        Path media = tmp.resolve("Cocoon/downloaded_media");
+        File icon = touch(media.resolve("gc/icon/Animal Crossing (USA).png"));
+        File rom = tmp.resolve("ROMs/gc/Animal Crossing (USA).rvz").toFile();
+        GameArt.Builder b = new GameArt.Builder(media.toFile());
+        b.add(rom, RomFilenameParser.parse(rom.getName()),
+                java.util.Collections.singletonMap(IdKind.GC_GAME_ID, "GAFE01"));
+        GameArt.Index idx = b.build();
+        assertEquals(icon, idx.icon(IdKind.GC_GAME_ID, "GAFE01"));
+        assertEquals(icon, idx.icon(IdKind.GC_GAME_ID, "GAFE"));
+        assertEquals(icon, idx.icon(IdKind.ROM_BASENAME, "Animal Crossing (USA)"));
+    }
 }

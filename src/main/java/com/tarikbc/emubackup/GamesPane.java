@@ -270,8 +270,7 @@ final class GamesPane extends Pane {
             merged.computeIfAbsent(key, k -> new ArrayList<>()).add(e);
         }
         for (List<GameHistory.Entry> entries : merged.values()) {
-            entries.sort((a, b) -> Long.compare(
-                    Math.max(b.newestMtimeMs(), b.lastBackedUpMs), Math.max(a.newestMtimeMs(), a.lastBackedUpMs)));
+            entries.sort((a, b) -> Long.compare(GameLabels.recencyMs(b), GameLabels.recencyMs(a)));
             GameHistory.Entry first = entries.get(0);
             Target t = reg.target(first.targetId);
             Emulator em = reg.emulatorOf(first.targetId);
@@ -281,7 +280,7 @@ final class GamesPane extends Pane {
             List<String> profiles = new ArrayList<>();
             for (GameHistory.Entry e : entries) {
                 bytes += e.group.bytes;
-                sortKey = Math.max(sortKey, Math.max(e.newestMtimeMs(), e.lastBackedUpMs));
+                sortKey = Math.max(sortKey, GameLabels.recencyMs(e));
                 Status s = statusOf(e, m);
                 if (worst == null || s.rank > worst.rank) worst = s;
                 if (e.group.profileKey != null) profiles.add(profileName(e.group.profileKey));
@@ -1075,7 +1074,7 @@ final class GamesPane extends Pane {
         }
         String profile = e.group.profileKey == null ? null : profileName(e.group.profileKey);
         RestoreSummary sum = RestoreSummary.describe(plan, row.name, profile, when, shortLabel(em),
-                model.input.nowMs);
+                model.input.nowMs, m.safety);
         if (sum.alreadyThere) {
             showSheet(sum.title, sum.body, null, sum.primary, null);
             return;

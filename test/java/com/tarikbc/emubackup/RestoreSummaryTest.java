@@ -131,4 +131,19 @@ class RestoreSummaryTest {
         RestoreSummary s = RestoreSummary.describe(p, "Zelda", null, "Today, 9:00 AM", "Dolphin", 0L);
         assertEquals("Put back Zelda from Today, 9:00 AM?", s.title);
     }
+
+    @Test
+    @DisplayName("a safety copy holds only what a restore replaced, so the rest is simply not touched")
+    void safetyCopyWording() throws Exception {
+        Hasher h = new Hasher().put("mk8/a.dat", "zz");
+        RestorePlan p = RestorePlanner.plan(backup(mf("mk8/a.dat", 10, 100, "aa")), "Game saves",
+                Arrays.asList(fs("mk8/a.dat", 10, 50), fs("mk8/replay.dat", 5, 50)), null, h, true);
+        RestoreSummary s = RestoreSummary.describe(p, "Mario Kart 8 Deluxe", "Tarik",
+                "Wed 16 Sep, 12:00 PM", "Eden", 10_000L, true);
+        assertEquals("Put back Mario Kart 8 Deluxe (Tarik) from the safety copy of Wed 16 Sep, 12:00 PM?",
+                s.title);
+        assertTrue(s.body.contains("Replaces 1 older file"), s.body);
+        assertTrue(s.body.contains("The other 1 file is not in the safety copy and is not touched."), s.body);
+        assertFalse(s.body.contains("added since then"), s.body);
+    }
 }

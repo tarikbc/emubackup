@@ -67,9 +67,10 @@ public final class RomIndexer {
                     RomFilenameParser.Rom rom = RomFilenameParser.parse(f.getName());
                     if (rom.hasIds()) ids++;
                     b.derivedFrom(rom);
-                    art.add(f, rom);
                     // The id inside the file, for the containers whose names never carry it.
-                    for (Map.Entry<IdKind, String> h : RomHeaders.read(f).entrySet()) {
+                    Map<IdKind, String> header = RomHeaders.read(f);
+                    art.add(f, rom, header);
+                    for (Map.Entry<IdKind, String> h : header.entrySet()) {
                         b.derived(h.getKey(), h.getValue(), rom.displayName);
                         ids++;
                     }

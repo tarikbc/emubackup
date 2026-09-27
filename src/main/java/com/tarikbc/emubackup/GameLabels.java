@@ -28,6 +28,18 @@ public final class GameLabels {
         return Consoles.name(badge) + " title " + key;
     }
 
+    /**
+     * When the game last changed: the newer of its files on the device and its newest recorded
+     * change in a backup. Not the last backup that held it, which every game shares after a
+     * run and which would tie the whole list, and not the file date alone, which a restore
+     * sets back to the backup's date and would sink a game just put back.
+     */
+    public static long recencyMs(GameHistory.Entry e) {
+        long at = e.newestMtimeMs();
+        if (!e.snapshots.isEmpty()) at = Math.max(at, e.snapshots.get(0).atMs);
+        return at;
+    }
+
     /** True when the game's newest snapshot looks reset and is the newest backup there is. */
     public static boolean looksResetNow(GameHistory.Entry e, java.util.List<IndexEntry> index) {
         if (e.snapshots.isEmpty()) return false;

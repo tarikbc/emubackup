@@ -62,8 +62,14 @@ The Backups pane checking a stored backup is intact, and the panes walked with L
 - **Backs up per game and per profile.** Put back one game for one profile, not everything.
 - **Versioned and incremental.** Only changed files are sent, in seconds after the first run.
 - **Google Drive, a folder you pick, or this device.** All three write the same tree.
-- **Restores safely.** A dry-run preview, a snapshot of anything about to be overwritten, and
-  saves that are newer on the device are skipped unless you say otherwise.
+- **Restores safely, one game at a time.** Every game has a timeline that says what each
+  backup holds and what changed in it ("userdata.dat updated", "1 file gone"). Putting a save
+  back reads "Puts back 1 missing file (79 KB): userdata.dat. 51 files already match." before
+  anything is written; a safety copy of what is replaced goes to the device's own folder, so
+  the restore can be undone in seconds, and the archive is read from a copy on the device
+  when one exists. Saves that are newer on the device are kept unless you say otherwise.
+- **Finds games fast.** Search by name (Y on a pad), narrow to one console, one profile, or
+  only the games that need you, and see the art Cocoon already downloaded for each game.
 - **Never locks you in.** Plain zips, a readable manifest, and a `RESTORE.txt` with the exact
   commands to recover everything with nothing but `unzip`. See
   [docs/FORMAT.md](docs/FORMAT.md).

@@ -56,6 +56,15 @@ public final class GameArt {
 
         /** Registers whatever art Cocoon holds for one ROM file, under every id the file carries. */
         public void add(File rom, RomFilenameParser.Rom parsed) {
+            add(rom, parsed, Collections.emptyMap());
+        }
+
+        /**
+         * The same, with ids read from inside the file. A GameCube or Wii disc image is named
+         * "Animal Crossing (USA).rvz" and carries its id only in its header, while the save is
+         * keyed by that id, so without these the art would answer to the basename alone.
+         */
+        public void add(File rom, RomFilenameParser.Rom parsed, Map<IdKind, String> headerIds) {
             File systemDir = rom.getParentFile();
             if (systemDir == null) return;
             String base = RomFilenameParser.stripExtension(rom.getName());
@@ -63,6 +72,9 @@ public final class GameArt {
             File hero = find(systemDir.getName(), "hero", base);
             if (icon == null && hero == null) return;
             for (Map.Entry<IdKind, String> e : parsed.ids.entrySet()) {
+                put(e.getKey(), e.getValue(), icon, hero);
+            }
+            for (Map.Entry<IdKind, String> e : headerIds.entrySet()) {
                 put(e.getKey(), e.getValue(), icon, hero);
             }
             put(IdKind.ROM_BASENAME, base, icon, hero);

@@ -45,11 +45,21 @@ public final class RestoreSummary {
      */
     public static RestoreSummary describe(RestorePlan plan, String game, String profile, String when,
                                           String emulator, long nowMs) {
+        return describe(plan, game, profile, when, emulator, nowMs, false);
+    }
+
+    /**
+     * @param safetyCopy true when the backup is a safety copy made before a restore. It holds
+     *                   only the files that restore replaced, so files it lacks were not "added
+     *                   since"; they were never part of it.
+     */
+    public static RestoreSummary describe(RestorePlan plan, String game, String profile, String when,
+                                          String emulator, long nowMs, boolean safetyCopy) {
         RestorePlan unforced = plan.withForced(false);
         RestorePlan forced = plan.withForced(true);
         String title = "Put back " + game
                 + (profile == null || profile.isEmpty() ? "" : " (" + profile + ")")
-                + " from " + when + "?";
+                + " from " + (safetyCopy ? "the safety copy of " : "") + when + "?";
         if (forced.toWrite().isEmpty()) {
             return new RestoreSummary(true, "Already there",
                     "Your current save already matches the backup from " + when + ".",
@@ -88,7 +98,10 @@ public final class RestoreSummary {
         if (same > 0) {
             lines.add(count(same, "file") + " already " + (same == 1 ? "matches and stays as it is." : "match and stay as they are."));
         }
-        if (orphans > 0) {
+        if (orphans > 0 && safetyCopy) {
+            lines.add("The other " + count(orphans, "file") + (orphans == 1 ? " is" : " are")
+                    + " not in the safety copy and " + (orphans == 1 ? "is" : "are") + " not touched.");
+        } else if (orphans > 0) {
             lines.add(count(orphans, "file") + " added since then " + (orphans == 1 ? "is" : "are") + " left in place.");
         }
         lines.add(emulator + " may need relaunching to notice.");

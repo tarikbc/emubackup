@@ -188,7 +188,10 @@ final class BackupsPane extends Pane {
             IndexEntry e = shown.get(position);
             long now = model.input.nowMs;
             h.when.setText(When.format(e.createdAtMs, now));
-            String meta = Sizes.human(e.bytes) + " \u00b7 " + where();
+            // A safety copy is written to the device's own folder whatever the store is, so
+            // the row says where this version actually lives, not where the rest do.
+            String at = Stores.isLocalSafetyCopy(e.id) ? "this device" : where();
+            String meta = Sizes.human(e.bytes) + " \u00b7 " + at;
             if (e.isPreRestore()) meta += " \u00b7 safety copy, made before a restore, kept";
             else if (e.pinned) meta += " \u00b7 kept";
             h.meta.setText(meta);

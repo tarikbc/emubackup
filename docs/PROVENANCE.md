@@ -250,7 +250,9 @@ segacd, snes, switch, tg-cd, tg16, wii, plus `android_app`, `folders`, `shortcut
 `windows`. Nothing under `Android/data/rip.moth.cocoonshell` holds art (only scrape reports).
 
 `GameArt` indexes `icon` and `hero` while `RomIndexer` walks the ROMs, under every id the ROM
-file name carries and the file base itself, with the same aliases `GameNames` keeps. Only
+file name carries, every id `RomHeaders` reads from inside it (GameCube and Wii discs are named
+"Animal Crossing (USA).rvz" and carry `GAFE01` only in the header, while the save is keyed by
+it), and the file base itself, with the same aliases `GameNames` keeps. Only
 directory entries are read; a file is opened only when a row shows it, by `ArtLoader`, once,
 at display size.
 
