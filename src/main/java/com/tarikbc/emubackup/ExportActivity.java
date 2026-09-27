@@ -75,7 +75,7 @@ public class ExportActivity extends GamepadActivity {
             String failure = null;
             try (OutputStream out = getContentResolver().openOutputStream(target)) {
                 if (out == null) throw new java.io.IOException("could not open that location");
-                r = ExportRunner.export(Stores.active(this), versionId, out,
+                r = ExportRunner.export(Stores.forVersion(this, versionId), versionId, out,
                         new java.io.File(getCacheDir(), "export"), new ExportRunner.Listener() {
                             @Override public void onProgress(String t, int done, int total) {
                                 ui.post(() -> {

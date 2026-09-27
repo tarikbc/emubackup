@@ -40,9 +40,13 @@ public final class SheetView extends FrameLayout {
         return secondaryButton;
     }
 
+    /** What had focus when the sheet came up, so dismissing it lands the ring back there. */
+    private View before;
+
     private SheetView(ViewGroup host) {
         super(host.getContext());
         this.host = host;
+        this.before = host.findFocus();
     }
 
     /**
@@ -295,5 +299,9 @@ public final class SheetView extends FrameLayout {
         }
         blocked.clear();
         if (getParent() == host) host.removeView(this);
+        // Without this the framework parks focus on the first focusable view, the rail, and
+        // the next D-pad press walks the places instead of the page the person was on.
+        if (before != null && before.isAttachedToWindow() && before.isShown()) Ui.focus(before, true);
+        before = null;
     }
 }

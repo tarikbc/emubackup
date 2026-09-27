@@ -179,7 +179,7 @@ public class BackupService extends Service {
         Prefs.markRunStarted(this, "restore", System.currentTimeMillis());
         try {
             if (request == null) throw new IllegalStateException("no restore was requested");
-            BackupSink sink = Stores.active(this);
+            BackupSink sink = Stores.forVersion(this, request.versionId);
             ManifestCache cache = new ManifestCache(this);
             Manifest m = cache.get(sink, request.versionId);
             // The same archive often sits in the device's own EmuBackup folder under another
@@ -204,6 +204,11 @@ public class BackupService extends Service {
 
             RestoreRunner runner = new RestoreRunner(sink, new LocalFileSource(), appPrivate,
                     new LocalFileSink(), appPrivateSink, caps).withArchiveOpener(opener);
+            // The safety copy goes to the device's own folder: instant, and never behind a
+            // stalled link. Games lists it beside the store's backups.
+            if (Destination.effective(this) != Destination.Kind.DEVICE) {
+                runner.withSafetyCopySink(Stores.safetyCopySink());
+            }
             RestoreRunner.Result r = runner.run(m, request.plans, System.currentTimeMillis(),
                     new RestoreRunner.Listener() {
                         @Override public void onProgress(Progress p) { publish(p); }

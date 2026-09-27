@@ -73,6 +73,8 @@ public final class RestoreRunner {
     private final FileSink appPrivateSink;
     private final Capabilities caps;
     private ArchiveReader.Opener opener;
+    /** Where the safety copy is written. The store restored from, unless a nearer one is given. */
+    private BackupSink safety;
 
     public RestoreRunner(BackupSink sink, FileSource shared, FileSource appPrivate,
                          FileSink sharedSink, FileSink appPrivateSink, Capabilities caps) {
@@ -92,6 +94,20 @@ public final class RestoreRunner {
     public RestoreRunner withArchiveOpener(ArchiveReader.Opener opener) {
         this.opener = opener;
         return this;
+    }
+
+    /**
+     * Writes the safety copy to {@code sink} instead of the store being restored from. A safety
+     * copy is a whole version: a folder, an archive, a manifest and an index rewrite, which is
+     * twenty round trips on a slow link and no round trips at all on the device's own folder.
+     */
+    public RestoreRunner withSafetyCopySink(BackupSink sink) {
+        this.safety = sink;
+        return this;
+    }
+
+    private BackupSink safety() {
+        return safety != null ? safety : sink;
     }
 
     public Result run(Manifest manifest, List<RestorePlan> plans, long nowMs, Listener listener)
@@ -217,14 +233,14 @@ public final class RestoreRunner {
 
         BackupIndex index = loadIndex();
         String vid = VersionId.next(index.highestCounter(), nowMs).id() + "-prerestore";
-        sink.ensureVersion(vid);
+        safety().ensureVersion(vid);
         try {
             return writeSnapshot(manifest, plans, perTarget, index, vid, nowMs);
         } catch (IOException | RuntimeException failed) {
             // Half a safety copy is not a safety copy. The folder goes, so the store does not
             // fill with empty "-prerestore" versions that the index never listed.
             try {
-                sink.deleteVersion(vid);
+                safety().deleteVersion(vid);
             } catch (IOException ignored) {
                 // The store is the thing that just failed; leaving the folder is the lesser harm.
             }
@@ -254,10 +270,10 @@ public final class RestoreRunner {
 
             String archive = p.targetId + ".full.zip";
             ArchiveWriter.Result w;
-            try (OutputStream out = sink.createArchive(vid, archive)) {
+            try (OutputStream out = safety().createArchive(vid, archive)) {
                 w = ArchiveWriter.write(out, root, src, plan, false, ArchiveWriter.SILENT);
             }
-            sink.commitArchive(vid, archive);
+            safety().commitArchive(vid, archive);
 
             List<String> chain = new ArrayList<>();
             chain.add(vid + "/" + archive);
@@ -270,13 +286,13 @@ public final class RestoreRunner {
         Manifest snap = new Manifest(vid, nowMs, manifest.appVersionName, manifest.registryVersion,
                 null, manifest.deviceModel, manifest.androidSdk, manifest.extRoot, caps, targets);
 
-        sink.writeFile(vid, "manifest.json", snap.toJson().getBytes(StandardCharsets.UTF_8));
-        sink.writeFile(vid, "SHA256SUMS", RestoreScript.sha256sums(snap).getBytes(StandardCharsets.UTF_8));
-        sink.writeFile(vid, "RESTORE.txt", RestoreScript.versionReadme(snap).getBytes(StandardCharsets.UTF_8));
+        safety().writeFile(vid, "manifest.json", snap.toJson().getBytes(StandardCharsets.UTF_8));
+        safety().writeFile(vid, "SHA256SUMS", RestoreScript.sha256sums(snap).getBytes(StandardCharsets.UTF_8));
+        safety().writeFile(vid, "RESTORE.txt", RestoreScript.versionReadme(snap).getBytes(StandardCharsets.UTF_8));
 
         BackupIndex updated = index.with(new IndexEntry(vid, nowMs, snap.totalBytes(), true, "prerestore"));
-        sink.writeRootFile(BackupIndex.FILE_NAME, updated.toJson().getBytes(StandardCharsets.UTF_8));
-        sink.writeRootFile("RESTORE.txt",
+        safety().writeRootFile(BackupIndex.FILE_NAME, updated.toJson().getBytes(StandardCharsets.UTF_8));
+        safety().writeRootFile("RESTORE.txt",
                 RestoreScript.storeReadme(updated.versions()).getBytes(StandardCharsets.UTF_8));
         return snap;
     }
@@ -293,12 +309,12 @@ public final class RestoreRunner {
     private BackupIndex loadIndex() throws IOException {
         byte[] raw;
         try {
-            raw = sink.readRootFile(BackupIndex.FILE_NAME);
+            raw = safety().readRootFile(BackupIndex.FILE_NAME);
         } catch (java.io.FileNotFoundException absent) {
             List<Manifest> all = new ArrayList<>();
-            for (String v : sink.listVersions()) {
-                if (!sink.hasFile(v, "manifest.json")) continue;
-                try (InputStream in = sink.openFile(v, "manifest.json")) {
+            for (String v : safety().listVersions()) {
+                if (!safety().hasFile(v, "manifest.json")) continue;
+                try (InputStream in = safety().openFile(v, "manifest.json")) {
                     all.add(Manifest.fromJson(BackupRunner.readAll(in)));
                 }
             }

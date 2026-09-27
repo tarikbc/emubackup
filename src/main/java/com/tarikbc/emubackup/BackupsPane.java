@@ -355,7 +355,7 @@ final class BackupsPane extends Pane {
             String line;
             try {
                 ManifestCache cache = new ManifestCache(host);
-                BackupSink store = cache.has(e.id) ? null : Stores.active(host);
+                BackupSink store = cache.has(e.id) ? null : Stores.forVersion(host, e.id);
                 Manifest m = cache.get(store, e.id);
                 int folders = 0;
                 for (ManifestTarget t : m.targets) if (!t.files.isEmpty()) folders++;

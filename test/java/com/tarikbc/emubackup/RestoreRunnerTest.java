@@ -431,4 +431,31 @@ class RestoreRunnerTest {
         assertTrue(r.ok(), "restore reported problems: " + r.missing + r.corrupt + r.failures);
         assertEquals("important progress", read(ext.resolve("saves/game1/save.dat")));
     }
+
+    @Test
+    @DisplayName("the safety copy can go to a nearer store than the one being restored from")
+    void safetyCopyGoesToTheNearerStore(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink remote = new LocalFolderSink(tmp.resolve("store").toString());
+        LocalFolderSink local = new LocalFolderSink(tmp.resolve("local").toString());
+        write(ext.resolve("saves/a.dat"), "original");
+        BackupRunner.Result b = backupRunner(ext, remote).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/a.dat"), "changed since");
+        ext.resolve("saves/a.dat").toFile().setLastModified(500L);
+
+        RestoreRunner runner = new RestoreRunner(remote, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false)).withSafetyCopySink(local);
+        RestoreRunner.Result r = runner.run(b.manifest,
+                Arrays.asList(planAll(b.manifest, ext, "saves").withForced(true)), 2_000L, RestoreRunner.SILENT);
+
+        assertTrue(r.ok());
+        assertEquals("original", read(ext.resolve("saves/a.dat")));
+        assertNotNull(r.snapshotVersionId);
+        assertTrue(r.snapshotVersionId.endsWith("-prerestore"));
+        assertTrue(local.listVersions().contains(r.snapshotVersionId), "the safety copy lives in the local store");
+        assertFalse(remote.listVersions().contains(r.snapshotVersionId), "and not in the store restored from");
+        assertEquals(1, index(local).size(), "the local index lists it");
+        assertTrue(index(local).get(0).isPreRestore());
+        assertEquals(1, index(remote).size(), "the remote index is untouched");
+    }
 }

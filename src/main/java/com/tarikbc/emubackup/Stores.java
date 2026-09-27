@@ -70,4 +70,24 @@ public final class Stores {
     public static BackupSink active(Context ctx) throws IOException {
         return active(ctx, null);
     }
+
+    /** The device's own folder, where a safety copy is written whatever the active store is. */
+    public static BackupSink safetyCopySink() throws IOException {
+        return new LocalFolderSink(localRoot().getAbsolutePath());
+    }
+
+    /** True when this version is a safety copy kept in the device's own folder. */
+    public static boolean isLocalSafetyCopy(String versionId) {
+        return versionId != null && versionId.endsWith("-prerestore")
+                && new File(new File(localRoot(), versionId), "manifest.json").isFile();
+    }
+
+    /**
+     * The store that holds a version: the device's folder for a safety copy written there,
+     * the active store for everything else.
+     */
+    public static BackupSink forVersion(Context ctx, String versionId) throws IOException {
+        if (isLocalSafetyCopy(versionId)) return safetyCopySink();
+        return active(ctx);
+    }
 }

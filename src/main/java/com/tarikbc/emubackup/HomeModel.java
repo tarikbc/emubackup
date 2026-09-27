@@ -155,6 +155,7 @@ final class HomeModel {
         if (withStore) note.say("Reading the list of backups in " + where + "\u2026");
         RestoreSession.Versions vs = withStore ? RestoreSession.listVersions(ctx)
                 : new RestoreSession.Versions(new ArrayList<>(), null);
+        if (withStore && in.where != Safety.Where.DEVICE) vs = withLocalSafetyCopies(vs);
         in.storeUnreachable = !vs.reachable();
         if (withStore && !vs.reachable()) {
             note.say(vs.stale ? "Could not reach " + where + "; using the backups it listed last time"
@@ -312,6 +313,28 @@ final class HomeModel {
         return names;
     }
 
+    /**
+     * Safety copies written to the device's own folder, added to the store's versions. They are
+     * what a restore made when the store was Drive; the Games page lists them as safety copies
+     * and a restore of one reads the device folder.
+     */
+    private static RestoreSession.Versions withLocalSafetyCopies(RestoreSession.Versions vs) {
+        try {
+            BackupSink local = Stores.safetyCopySink();
+            List<IndexEntry> merged = new ArrayList<>(vs.list);
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (IndexEntry e : merged) ids.add(e.id);
+            for (IndexEntry e : BackupIndex.fromJson(new String(local.readRootFile(BackupIndex.FILE_NAME),
+                    java.nio.charset.StandardCharsets.UTF_8)).versions()) {
+                if (e.isPreRestore() && !ids.contains(e.id) && Stores.isLocalSafetyCopy(e.id)) merged.add(e);
+            }
+            return new RestoreSession.Versions(merged, vs.error, vs.stale);
+        } catch (Exception none) {
+            // No local folder, or no index in it: nothing to add.
+            return vs;
+        }
+    }
+
     private static Map<String, Manifest> manifests(Context ctx, List<IndexEntry> index, String where,
                                                    Note note) {
         ManifestCache cache = new ManifestCache(ctx);
@@ -319,12 +342,16 @@ final class HomeModel {
         Map<String, Manifest> manifests = new HashMap<>();
         BackupSink store = null;
         int toFetch = 0;
-        for (IndexEntry e : index) if (!cache.has(e.id)) toFetch++;
+        for (IndexEntry e : index) if (!cache.has(e.id) && !Stores.isLocalSafetyCopy(e.id)) toFetch++;
         int fetched = 0, failed = 0;
         for (IndexEntry e : index) {
             long t0 = System.currentTimeMillis();
             boolean cached = cache.has(e.id);
             try {
+                if (Stores.isLocalSafetyCopy(e.id)) {
+                    manifests.put(e.id, cache.get(Stores.safetyCopySink(), e.id));
+                    continue;
+                }
                 if (!cached) {
                     fetched++;
                     note.say("Reading backup " + fetched + " of " + toFetch + " from " + where + " ("

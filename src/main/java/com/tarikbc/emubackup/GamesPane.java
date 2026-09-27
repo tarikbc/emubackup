@@ -1027,7 +1027,7 @@ final class GamesPane extends Pane {
             RestoreSession session = null;
             String failure = null;
             try {
-                BackupSink store = Stores.active(host);
+                BackupSink store = Stores.forVersion(host, m.versionId);
                 Manifest manifest = new ManifestCache(host).get(store, m.versionId);
                 SaveGroup stored = GameHistory.groupsOf(reg, manifest).get(e.key);
                 // The filter is the game's files then and now, so a file added since shows

@@ -170,7 +170,7 @@ public final class RestoreSession {
             ManifestCache cache = new ManifestCache(ctx);
             note.say(cache.has(versionId) ? "Reading the backup's file list\u2026"
                     : "Reading the backup's file list from " + describeStore(ctx) + "\u2026");
-            BackupSink s = Stores.active(ctx);
+            BackupSink s = Stores.forVersion(ctx, versionId);
             Manifest m = cache.get(s, versionId);
 
             TargetRegistry reg = TargetRegistry.parse(Assets.readString(ctx, "targets.json"));

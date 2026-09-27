@@ -45,7 +45,7 @@ public class VerifyActivity extends GamepadActivity {
             VerifyRunner.Result r;
             String failure = null;
             try {
-                r = VerifyRunner.verify(Stores.active(this), versionId, new VerifyRunner.Listener() {
+                r = VerifyRunner.verify(Stores.forVersion(this, versionId), versionId, new VerifyRunner.Listener() {
                     @Override public void onProgress(String archive, int done, int total) {
                         ui.post(() -> {
                             if (isFinishing() || isDestroyed()) return;
