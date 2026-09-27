@@ -173,22 +173,36 @@ public final class DriveApi {
      *                 and must not wait two minutes on a stalled socket; an archive may.
      */
     public InputStream download(String fileId, long sizeHint) throws IOException {
+        return download(fileId, sizeHint, 0);
+    }
+
+    /**
+     * @param offset the first byte wanted, for picking a stalled download up where it stopped
+     */
+    public InputStream download(String fileId, long sizeHint, long offset) throws IOException {
         boolean small = sizeHint <= SMALL_FILE_BYTES;
         try {
-            return downloadOnce(fileId, small ? METADATA_TIMEOUT_MS : TRANSFER_TIMEOUT_MS);
+            return downloadOnce(fileId, small ? METADATA_TIMEOUT_MS : TRANSFER_TIMEOUT_MS, offset);
         } catch (java.net.SocketTimeoutException first) {
             if (!small) throw first;
-            return downloadOnce(fileId, METADATA_TIMEOUT_MS);
+            return downloadOnce(fileId, METADATA_TIMEOUT_MS, offset);
         }
     }
 
-    private InputStream downloadOnce(String fileId, int readTimeoutMs) throws IOException {
+    private InputStream downloadOnce(String fileId, int readTimeoutMs, long offset) throws IOException {
         HttpURLConnection c = open(FILES + "/" + fileId + "?alt=media", "GET", readTimeoutMs);
         // Without this the stack advertises gzip and transparently inflates, which makes
         // Content-Length meaningless for progress reporting.
         c.setRequestProperty("Accept-Encoding", "identity");
+        if (offset > 0) c.setRequestProperty("Range", "bytes=" + offset + "-");
         int code = c.getResponseCode();
-        if (code != 200) throw new DriveException(code, "download failed: " + errorText(c));
+        if (offset > 0 && code == 200) {
+            // The server ignored the range and is sending the whole file: skip to the byte wanted.
+            InputStream in = c.getInputStream();
+            skipFully(in, offset);
+            return in;
+        }
+        if (code != 200 && code != 206) throw new DriveException(code, "download failed: " + errorText(c));
         return c.getInputStream();
     }
 

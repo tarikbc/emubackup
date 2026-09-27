@@ -98,6 +98,7 @@ public class BackupService extends Service {
         boolean failed = false;
         String versionId = null;
         long bytes = 0;
+        Prefs.markRunStarted(this, "backup", System.currentTimeMillis());
         try {
             ScanSession session = ScanSession.run(this);
             if (!session.ok()) throw new IllegalStateException(session.registryError);
@@ -157,6 +158,7 @@ public class BackupService extends Service {
         // A cancellation is not a run and not a failure. The person stopped it and nothing was
         // written; recording it as "ok" would put a success in the history for a backup that
         // never happened, and recording it as a failure would blame them for their own choice.
+        Prefs.clearRunStarted(this, "backup");
         if (versionId != null || failed) {
             Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "manual",
                     !failed, versionId, bytes, summary));
@@ -174,12 +176,23 @@ public class BackupService extends Service {
         RestoreRequest request = PENDING_RESTORE;
         String summary;
         boolean failed = false;
+        Prefs.markRunStarted(this, "restore", System.currentTimeMillis());
         try {
             if (request == null) throw new IllegalStateException("no restore was requested");
             BackupSink sink = Stores.active(this);
-            Manifest m;
-            try (java.io.InputStream in = sink.openFile(request.versionId, "manifest.json")) {
-                m = Manifest.fromJson(BackupRunner.readAll(in));
+            ManifestCache cache = new ManifestCache(this);
+            Manifest m = cache.get(sink, request.versionId);
+            // The same archive often sits in the device's own EmuBackup folder under another
+            // version id. Its checksum says so, and reading it beats a slow link every time.
+            ArchiveReader.Opener opener = ArchiveReader.of(sink);
+            if (Destination.effective(this) != Destination.Kind.DEVICE) {
+                opener = new ArchiveMirror(sink, ArchiveMirror.scan(Stores.localRoot()), v -> {
+                    try {
+                        return cache.get(sink, v);
+                    } catch (java.io.IOException e) {
+                        throw new java.io.UncheckedIOException(e);
+                    }
+                });
             }
             ShizukuGate.Status shizuku = ShizukuGate.connect(this);
             Capabilities caps = new Capabilities(Permissions.hasAllFiles(), shizuku.ready(),
@@ -190,7 +203,7 @@ public class BackupService extends Service {
                     ? new RemoteFileSink(ShizukuGate.service()) : null;
 
             RestoreRunner runner = new RestoreRunner(sink, new LocalFileSource(), appPrivate,
-                    new LocalFileSink(), appPrivateSink, caps);
+                    new LocalFileSink(), appPrivateSink, caps).withArchiveOpener(opener);
             RestoreRunner.Result r = runner.run(m, request.plans, System.currentTimeMillis(),
                     new RestoreRunner.Listener() {
                         @Override public void onProgress(Progress p) { publish(p); }
@@ -221,6 +234,7 @@ public class BackupService extends Service {
         }
 
         PENDING_RESTORE = null;
+        Prefs.clearRunStarted(this, "restore");
         Notifications.result(this, failed ? "Restore failed" : "Restore finished", summary);
         // A restore is a run. A history that omits them reads as a complete record and is not.
         Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "restore", !failed,

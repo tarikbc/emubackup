@@ -296,4 +296,139 @@ class RestoreRunnerTest {
         return BackupIndex.fromJson(new String(sink.readRootFile(BackupIndex.FILE_NAME),
                 java.nio.charset.StandardCharsets.UTF_8)).versions();
     }
+
+    /** A sink that behaves like {@code good} except where {@code rule} says otherwise. */
+    private static BackupSink proxy(BackupSink good, java.util.function.BiFunction<String, Object[], Object> rule) {
+        return (BackupSink) java.lang.reflect.Proxy.newProxyInstance(
+                BackupSink.class.getClassLoader(), new Class<?>[] { BackupSink.class },
+                (proxyObj, method, args) -> {
+                    Object r = rule.apply(method.getName(), args == null ? new Object[0] : args);
+                    if (r instanceof IOException) throw (IOException) r;
+                    if (r != null) return r;
+                    try {
+                        return method.invoke(good, args);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+    }
+
+    @Test
+    @DisplayName("a safety copy that cannot be written leaves no half-made version behind")
+    void failedSafetyCopyLeavesNoFolder(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink good = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/a.dat"), "original");
+        BackupRunner.Result b = backupRunner(ext, good).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/a.dat"), "changed since");
+        ext.resolve("saves/a.dat").toFile().setLastModified(500L);
+
+        BackupSink flaky = proxy(good, (name, args) ->
+                name.equals("createArchive") && String.valueOf(args[0]).endsWith("-prerestore")
+                        ? new IOException("timeout") : null);
+        RestoreRunner runner = new RestoreRunner(flaky, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false));
+        assertThrows(IOException.class, () -> runner.run(b.manifest,
+                Arrays.asList(planAll(b.manifest, ext, "saves").withForced(true)), 2_000L, RestoreRunner.SILENT));
+
+        for (String v : good.listVersions()) assertFalse(v.endsWith("-prerestore"), "left behind: " + v);
+        assertEquals("changed since", read(ext.resolve("saves/a.dat")));
+    }
+
+    @Test
+    @DisplayName("an archive the store cannot serve is read from a local copy with the same checksum")
+    void restoresFromALocalMirror(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink good = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/game1/save.dat"), "important progress");
+        BackupRunner.Result b = backupRunner(ext, good).run(null, "manual", 1_000L, BackupRunner.SILENT);
+
+        // A second store holding the same archives under other version ids, as a device
+        // folder does beside Drive.
+        Path mirrorRoot = tmp.resolve("mirror");
+        String v = b.versionId;
+        Files.createDirectories(mirrorRoot.resolve(v));
+        for (String f : new String[] { "saves.full.zip", "manifest.json" }) {
+            Files.copy(tmp.resolve("store").resolve(v).resolve(f), mirrorRoot.resolve(v).resolve(f));
+        }
+        Files.delete(ext.resolve("saves/game1/save.dat"));
+
+        // The main store answers everything except archives, like Drive on a stalling link.
+        BackupSink remote = proxy(good, (name, args) ->
+                name.equals("openFile") && String.valueOf(args[1]).endsWith(".zip") ? new IOException("timeout") : null);
+        ArchiveMirror mirror = new ArchiveMirror(remote, ArchiveMirror.scan(mirrorRoot.toFile()), version -> {
+            try (InputStream in = good.openFile(version, "manifest.json")) {
+                return Manifest.fromJson(BackupRunner.readAll(in));
+            } catch (IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        });
+        List<Progress> seen = new ArrayList<>();
+        RestoreRunner runner = new RestoreRunner(remote, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false)).withArchiveOpener(mirror);
+        RestoreRunner.Result r = runner.run(b.manifest, Arrays.asList(planAll(b.manifest, ext, "saves")), 2_000L,
+                new RestoreRunner.Listener() {
+                    @Override public void onProgress(Progress p) { seen.add(p); }
+                    @Override public boolean isCancelled() { return false; }
+                });
+
+        assertTrue(r.ok(), "restore reported problems: " + r.missing + r.corrupt + r.failures);
+        assertEquals("important progress", read(ext.resolve("saves/game1/save.dat")));
+        boolean said = false;
+        for (Progress p : seen) if (p.message != null && p.message.contains("copy on this device")) said = true;
+        assertTrue(said, "the person should be told the copy on the device was used: " + messages(seen));
+    }
+
+    @Test
+    @DisplayName("a local copy whose bytes do not match the checksum is not trusted")
+    void mirrorRejectsACorruptCopy(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink good = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/game1/save.dat"), "important progress");
+        BackupRunner.Result b = backupRunner(ext, good).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        Path mirrorRoot = tmp.resolve("mirror");
+        Files.createDirectories(mirrorRoot.resolve(b.versionId));
+        Files.copy(tmp.resolve("store").resolve(b.versionId).resolve("manifest.json"),
+                mirrorRoot.resolve(b.versionId).resolve("manifest.json"));
+        Files.write(mirrorRoot.resolve(b.versionId).resolve("saves.full.zip"), "not a zip".getBytes(StandardCharsets.UTF_8));
+        Files.delete(ext.resolve("saves/game1/save.dat"));
+
+        ArchiveMirror mirror = new ArchiveMirror(good, ArchiveMirror.scan(mirrorRoot.toFile()), version -> {
+            try (InputStream in = good.openFile(version, "manifest.json")) {
+                return Manifest.fromJson(BackupRunner.readAll(in));
+            } catch (IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        });
+        RestoreRunner runner = new RestoreRunner(good, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false)).withArchiveOpener(mirror);
+        RestoreRunner.Result r = runner.run(b.manifest, Arrays.asList(planAll(b.manifest, ext, "saves")), 2_000L, RestoreRunner.SILENT);
+        assertTrue(r.ok(), "the store's own copy should have been used instead: " + r.missing + r.corrupt);
+        assertEquals("important progress", read(ext.resolve("saves/game1/save.dat")));
+    }
+
+    @Test
+    @DisplayName("a local archive that holds the same file, under another backup, serves it")
+    void mirrorMatchesByFileNotByArchive(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink good = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/game1/save.dat"), "important progress");
+        BackupRunner.Result b = backupRunner(ext, good).run(null, "manual", 1_000L, BackupRunner.SILENT);
+
+        // A separate store, backed up later with one more file: a different archive with
+        // different bytes and a different checksum, holding the same save.dat.
+        write(ext.resolve("saves/game2/other.dat"), "unrelated");
+        LocalFolderSink mirror = new LocalFolderSink(tmp.resolve("mirror").toString());
+        backupRunner(ext, mirror).run(null, "manual", 5_000L, BackupRunner.SILENT);
+        Files.delete(ext.resolve("saves/game1/save.dat"));
+
+        BackupSink remote = proxy(good, (name, args) ->
+                name.equals("openFile") && String.valueOf(args[1]).endsWith(".zip") ? new IOException("timeout") : null);
+        ArchiveMirror m = new ArchiveMirror(remote, ArchiveMirror.scan(tmp.resolve("mirror").toFile()), version -> null);
+        RestoreRunner runner = new RestoreRunner(remote, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false)).withArchiveOpener(m);
+        RestoreRunner.Result r = runner.run(b.manifest, Arrays.asList(planAll(b.manifest, ext, "saves")), 2_000L, RestoreRunner.SILENT);
+        assertTrue(r.ok(), "restore reported problems: " + r.missing + r.corrupt + r.failures);
+        assertEquals("important progress", read(ext.resolve("saves/game1/save.dat")));
+    }
 }

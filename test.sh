@@ -82,6 +82,9 @@ $SRC/DriveSink.java
 $SRC/RestoreSummary.java
 $SRC/GameFilter.java
 $SRC/GameArt.java
+$SRC/ResumableInputStream.java
+$SRC/ArchiveMirror.java
+$SRC/GameLabels.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,

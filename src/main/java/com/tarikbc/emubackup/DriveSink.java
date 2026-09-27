@@ -165,7 +165,10 @@ public final class DriveSink implements BackupSink {
     @Override public InputStream openFile(String versionId, String name) throws IOException {
         DriveApi.RemoteFile f = find(versionId, name);
         if (f == null) throw new IOException("not in Drive: " + versionId + "/" + name);
-        return api.download(f.id, f.size);
+        // A stall mid-archive resumes from the byte it reached rather than starting over.
+        final String id = f.id;
+        final long size = f.size;
+        return new ResumableInputStream(offset -> api.download(id, size, offset), 5);
     }
 
     @Override public boolean hasFile(String versionId, String name) {

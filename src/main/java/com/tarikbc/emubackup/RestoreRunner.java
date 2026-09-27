@@ -72,6 +72,7 @@ public final class RestoreRunner {
     private final FileSink sharedSink;
     private final FileSink appPrivateSink;
     private final Capabilities caps;
+    private ArchiveReader.Opener opener;
 
     public RestoreRunner(BackupSink sink, FileSource shared, FileSource appPrivate,
                          FileSink sharedSink, FileSink appPrivateSink, Capabilities caps) {
@@ -87,8 +88,15 @@ public final class RestoreRunner {
      * @param manifest the version being restored from
      * @param plans    what to do, already reviewed by the user
      */
+    /** Reads archives through {@code opener} (a nearer copy, say) instead of the store alone. */
+    public RestoreRunner withArchiveOpener(ArchiveReader.Opener opener) {
+        this.opener = opener;
+        return this;
+    }
+
     public Result run(Manifest manifest, List<RestorePlan> plans, long nowMs, Listener listener)
             throws IOException {
+        final ArchiveReader.Opener source = opener != null ? opener : ArchiveReader.of(sink);
 
         List<String> failures = new ArrayList<>();
         Manifest snapshotManifest = snapshot(manifest, plans, nowMs, listener);
@@ -125,7 +133,7 @@ public final class RestoreRunner {
             final int fIdx = idx, fCount = plans.size();
             final String label = plan.targetLabel;
 
-            ArchiveReader.Result r = ArchiveReader.extract(sink, mt.chain, wanted,
+            ArchiveReader.Result r = ArchiveReader.extract(source, mt.chain, wanted,
                     new ArchiveReader.Writer() {
                         @Override public OutputStream open(String rel) throws IOException {
                             return dest.createTemp(root, rel);
@@ -151,9 +159,11 @@ public final class RestoreRunner {
                         @Override public void onArchive(String v, String a, long read) {
                             // No total: the store may not say how big the archive is. Bytes read
                             // is still a number that moves, which is what a person watching needs.
+                            String where = source.where(v, a, wanted);
                             listener.onProgress(new Progress(Progress.Phase.ARCHIVING, plan.targetId,
                                     label, fIdx, fCount, null, 0, 0, read, 0,
-                                    "Reading the backup of " + label + "\u2026"));
+                                    "Reading the backup of " + label
+                                            + (where == null ? "" : " from " + where) + "\u2026"));
                         }
                         @Override public boolean isCancelled() { return listener.isCancelled(); }
                     });
@@ -208,7 +218,23 @@ public final class RestoreRunner {
         BackupIndex index = loadIndex();
         String vid = VersionId.next(index.highestCounter(), nowMs).id() + "-prerestore";
         sink.ensureVersion(vid);
+        try {
+            return writeSnapshot(manifest, plans, perTarget, index, vid, nowMs);
+        } catch (IOException | RuntimeException failed) {
+            // Half a safety copy is not a safety copy. The folder goes, so the store does not
+            // fill with empty "-prerestore" versions that the index never listed.
+            try {
+                sink.deleteVersion(vid);
+            } catch (IOException ignored) {
+                // The store is the thing that just failed; leaving the folder is the lesser harm.
+            }
+            throw failed;
+        }
+    }
 
+    private Manifest writeSnapshot(Manifest manifest, List<RestorePlan> plans,
+                                   Map<String, List<RestoreItem>> perTarget, BackupIndex index,
+                                   String vid, long nowMs) throws IOException {
         List<ManifestTarget> targets = new ArrayList<>();
         for (RestorePlan p : plans) {
             List<RestoreItem> over = perTarget.get(p.targetId);

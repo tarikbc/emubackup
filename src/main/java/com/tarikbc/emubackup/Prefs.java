@@ -87,6 +87,29 @@ public final class Prefs {
         prefs(ctx).edit().remove(K_LOG).apply();
     }
 
+    /**
+     * Set while a backup or restore runs, cleared when it ends. A marker still there on the
+     * next launch means the app was stopped in the middle, which the person must hear about.
+     */
+    public static void markRunStarted(Context ctx, String kind, long atMs) {
+        prefs(ctx).edit().putLong("run_started_" + kind, atMs).apply();
+    }
+
+    public static void clearRunStarted(Context ctx, String kind) {
+        prefs(ctx).edit().remove("run_started_" + kind).apply();
+    }
+
+    /** The kind of run that was cut short, "restore" first, or null. */
+    public static String interruptedRun(Context ctx) {
+        if (prefs(ctx).contains("run_started_restore")) return "restore";
+        if (prefs(ctx).contains("run_started_backup")) return "backup";
+        return null;
+    }
+
+    public static long interruptedRunAt(Context ctx, String kind) {
+        return prefs(ctx).getLong("run_started_" + kind, 0L);
+    }
+
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }

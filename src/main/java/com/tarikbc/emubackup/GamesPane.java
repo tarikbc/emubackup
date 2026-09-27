@@ -241,6 +241,7 @@ final class GamesPane extends Pane {
         boolean afterBackup = e.newestMtimeMs() > e.lastBackedUpMs;
         if (!e.onDevice) return new Status("not on this device", R.color.text_tertiary, 0);
         if (e.lastBackedUpMs == 0) return new Status("not backed up yet", R.color.warn, 3);
+        if (GameLabels.looksResetNow(e, m.index)) return new Status("looks like it started over", R.color.warn, 4);
         if (e.changedSinceBackup && afterBackup) return new Status("changed since last backup", R.color.warn, 2);
         if (e.changedSinceBackup) {
             boolean aside = false;
@@ -338,23 +339,7 @@ final class GamesPane extends Pane {
     }
 
     private static String displayName(GameHistory.Entry e, Target t, GameNames names, String badge) {
-        if (e.group.isWholeTarget()) return t.label;
-        if (e.group.isUngrouped()) return "Other files in " + t.label;
-        String key = e.group.gameKey;
-        IdKind kind = e.group.gameIdKind;
-        if ("dolphin-wii".equals(t.id)) {
-            // The NAND keys a save by the hex of its game id; system titles are not games.
-            String id = TitleIds.wiiNandGameId(key);
-            if (id == null) return "Wii system data · " + key;
-            if (names.isKnown(IdKind.GC_GAME_ID, id)) return names.lookup(IdKind.GC_GAME_ID, id);
-            return "Wii title " + id;
-        }
-        if (names.isKnown(kind, key)) return names.lookup(kind, key);
-        if (kind == IdKind.ROM_BASENAME) return RomFilenameParser.cleanTitle(key);
-        if (kind == IdKind.N3DS_TITLE_ID && TitleIds.is3dsSystem(key)) return "3DS system data · " + key.substring(8);
-        if (kind == IdKind.N3DS_TITLE_ID && TitleIds.is3dsAddOn(key)) return "3DS add-on content · " + key.substring(8);
-        if (kind == IdKind.N3DS_TITLE_ID && key.length() == 16) return "3DS title " + key.substring(8);
-        return Consoles.name(badge) + " title " + key;
+        return GameLabels.displayName(e, t, names, badge);
     }
 
     // ---- chips ----
@@ -838,8 +823,15 @@ final class GamesPane extends Pane {
         List<Moment> moments = moments(e);
         col.addView(Ui.caption(c, "Put back an older save"), top(18));
         if (e.onDevice) {
-            col.addView(Ui.text(c, "On the device now: " + count(e.group.files.size(), "file") + ", "
-                    + Sizes.human(e.group.bytes) + ".", 14, R.color.text_secondary), top(6));
+            StringBuilder now = new StringBuilder("On the device now: ").append(count(e.group.files.size(), "file"))
+                    .append(", ").append(Sizes.human(e.group.bytes)).append(".");
+            // Which backups differ is the question; say plainly when the newer ones do not.
+            long newestBackup = model.newestIndexedMs();
+            if (!e.snapshots.isEmpty() && newestBackup > e.snapshots.get(0).atMs) {
+                now.append(" Every backup since ").append(When.format(e.snapshots.get(0).atMs, model.input.nowMs))
+                        .append(" holds the same files for this game.");
+            }
+            col.addView(Ui.text(c, now.toString(), 14, R.color.text_secondary), top(6));
         }
         if (moments.isEmpty()) {
             col.addView(Ui.text(c, model.historyPending ? "Reading backup history…"
@@ -921,6 +913,13 @@ final class GamesPane extends Pane {
             int start = b.length();
             b.append(count(s.removed, "file")).append(" gone");
             if (s.removed <= 2) b.append(": ").append(basenames(s.removedPaths));
+            b.setSpan(new ForegroundColorSpan(Ui.color(host, R.color.warn)), start, b.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        if (s.looksReset) {
+            int start = b.length();
+            b.append(" · ").append(Sizes.human(s.shrunkBytes))
+                    .append(" smaller; looks like a new save, the copy before is kept");
             b.setSpan(new ForegroundColorSpan(Ui.color(host, R.color.warn)), start, b.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }

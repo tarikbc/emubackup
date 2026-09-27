@@ -141,4 +141,35 @@ class SafetyTest {
         in.gamesStale = 1;
         assertEquals("1 game changed since the last backup.", Safety.assess(in).headline);
     }
+
+    @Test
+    @DisplayName("a game that looks started over is raised before stale games, and points at Games")
+    void resetGameComesFirst() {
+        Safety.Input in = healthy();
+        in.gamesStale = 3;
+        in.resetGames = java.util.List.of("Mario Kart 8 Deluxe");
+        Safety.Report r = Safety.assess(in);
+        assertEquals(Safety.State.ATTENTION, r.state);
+        assertTrue(r.headline.contains("Mario Kart 8 Deluxe"), r.headline);
+        assertTrue(r.headline.contains("started over"), r.headline);
+        assertTrue(r.detail.contains("kept"), r.detail);
+        assertEquals(Safety.Action.SEE_GAMES, r.action);
+    }
+
+    @Test
+    @DisplayName("a restore the app was stopped in the middle of is reported until the next one finishes")
+    void cutShortRestoreIsReported() {
+        Safety.Input in = healthy();
+        in.interruptedKind = "restore";
+        in.interruptedAtMs = in.nowMs - 60_000;
+        Safety.Report r = Safety.assess(in);
+        assertEquals(Safety.State.ATTENTION, r.state);
+        assertTrue(r.headline.contains("cut short"), r.headline);
+        assertEquals(Safety.Action.SEE_GAMES, r.action);
+
+        in.interruptedKind = "backup";
+        r = Safety.assess(in);
+        assertTrue(r.headline.contains("cut short"), r.headline);
+        assertEquals(Safety.Action.BACK_UP_NOW, r.action);
+    }
 }

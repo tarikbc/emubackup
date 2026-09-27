@@ -253,3 +253,18 @@ segacd, snes, switch, tg-cd, tg16, wii, plus `android_app`, `folders`, `shortcut
 file name carries and the file base itself, with the same aliases `GameNames` keeps. Only
 directory entries are read; a file is opened only when a row shows it, by `ArtLoader`, once,
 at display size.
+
+## Mario Kart 8 Deluxe: two save formats, one folder grant (2026-09-27)
+
+`0100152000022000` writes `userdata.dat` of 79 472 bytes as the base game (v0) and 80 736
+bytes with update `[0100152000022800][v1376256]`. Neither version reads the other's file: the
+game shows "Select a Mii" and writes a fresh save over it. Eden nightly (reinstalled 2026-09-12)
+had nothing under `nand/user/Contents/registered`; the update and the Booster Course Pass sat in
+`ROMs/switch/Updates and DLC` and were found only through Eden's SAF grant to `ROMs/switch`.
+A launch from Eden's own list (`MainActivity`) had the grant; a launch straight from Cocoon
+(`EmulationActivity`) did not and logged `Cannot list file error: Permission Denial …
+ROMs/switch` every time (six sessions on 2026-09-27). The real save was overwritten on
+2026-09-13 01:38, the first launch after the reinstall; every backup since held the fresh file.
+The recents screen force-stops apps (`am_kill … stop … from com.android.launcher3`), Eden and
+EmuBackup alike, which cut two restores short. These are the events behind `looksReset`, the
+archive mirror, resumable downloads and the cut-short marker in ARCHITECTURE.md §6.

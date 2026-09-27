@@ -40,8 +40,23 @@ public final class GameHistory {
         /** What the game held in this backup. Zero when it had vanished. */
         public final int files;
         public final long bytes;
+        /** How much smaller the updated files got, in all. Zero when none shrank. */
+        public final long shrunkBytes;
+        /**
+         * True when the same files were written again and got smaller, with nothing added or
+         * removed: the shape of a game that started a new save over an old one. A guess, worded
+         * as one; the backup before such a snapshot is pinned so it outlives retention.
+         */
+        public final boolean looksReset;
 
         Snapshot(String versionId, long atMs, boolean first, Delta d, int files, long bytes) {
+            this(versionId, atMs, first, d, files, bytes, 0, false);
+        }
+
+        Snapshot(String versionId, long atMs, boolean first, Delta d, int files, long bytes,
+                 long shrunkBytes, boolean looksReset) {
+            this.shrunkBytes = shrunkBytes;
+            this.looksReset = looksReset;
             this.versionId = versionId;
             this.atMs = atMs;
             this.first = first;
@@ -125,6 +140,7 @@ public final class GameHistory {
 
         // Per group key: the path -> sha256 map as of the last backup that observed it.
         Map<String, Map<String, String>> lastSeen = new HashMap<>();
+        Map<String, Map<String, Long>> lastSizes = new HashMap<>();
         Map<String, String> lastTarget = new HashMap<>();
         Map<String, SaveGroup> lastGroup = new HashMap<>();
         Map<String, Long> lastBackedUp = new HashMap<>();
@@ -159,11 +175,14 @@ public final class GameHistory {
                 Map<String, String> before = lastSeen.get(key);
                 Delta d = delta(before == null ? new HashMap<>() : before, hashes);
                 if (before == null || d.size() > 0) {
+                    long shrunk = before == null ? 0 : shrunk(lastSizes.get(key), sizesOf(g.getValue()), d);
+                    boolean reset = before == null ? false : looksReset(d, shrunk, lastGroup.get(key), g.getValue());
                     snaps.computeIfAbsent(key, k -> new ArrayList<>())
                             .add(new Snapshot(e.id, e.createdAtMs, before == null, d,
-                                    g.getValue().files.size(), g.getValue().bytes));
+                                    g.getValue().files.size(), g.getValue().bytes, shrunk, reset));
                 }
                 lastSeen.put(key, hashes);
+                lastSizes.put(key, sizesOf(g.getValue()));
                 lastTarget.put(key, g.getValue().targetId);
                 lastGroup.put(key, g.getValue());
                 lastBackedUp.put(key, e.createdAtMs);
@@ -233,6 +252,45 @@ public final class GameHistory {
         for (FileStat f : g.files) {
             String h = byPath.get(f.path);
             if (h != null) out.put(f.path, h);
+        }
+        return out;
+    }
+
+    private static Map<String, Long> sizesOf(SaveGroup g) {
+        Map<String, Long> out = new HashMap<>();
+        for (FileStat f : g.files) out.put(f.path, f.size);
+        return out;
+    }
+
+    /** Bytes lost across the updated files, counting only the ones that got smaller. */
+    private static long shrunk(Map<String, Long> before, Map<String, Long> after, Delta d) {
+        if (before == null) return 0;
+        long n = 0;
+        for (String p : d.updated) {
+            Long b = before.get(p), a = after.get(p);
+            if (b != null && a != null && a < b) n += b - a;
+        }
+        return n;
+    }
+
+    private static boolean looksReset(Delta d, long shrunk, SaveGroup before, SaveGroup after) {
+        return d.added.isEmpty() && d.removed.isEmpty() && !d.updated.isEmpty()
+                && shrunk > 0 && before != null && after.bytes < before.bytes;
+    }
+
+    /**
+     * The games that look reset between two consecutive backups, by {@link #keyOf}. For the
+     * backup runner, which pins the earlier version when the list is not empty.
+     */
+    public static List<String> resetGroups(TargetRegistry registry, Manifest prior, Manifest now) {
+        List<String> out = new ArrayList<>();
+        Map<String, SaveGroup> was = groupsOf(registry, prior);
+        for (Map.Entry<String, SaveGroup> g : groupsOf(registry, now).entrySet()) {
+            SaveGroup before = was.get(g.getKey());
+            if (before == null) continue;
+            Delta d = delta(hashesOf(prior, before), hashesOf(now, g.getValue()));
+            long shrunk = shrunk(sizesOf(before), sizesOf(g.getValue()), d);
+            if (looksReset(d, shrunk, before, g.getValue())) out.add(g.getKey());
         }
         return out;
     }

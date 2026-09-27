@@ -211,6 +211,18 @@ final class HomeModel {
             }
         }
         in.gamesLocked = locked;
+        if (withStore && s.ok()) {
+            for (GameHistory.Entry g : games.values()) {
+                if (!selected.contains(g.targetId) || !GameLabels.looksResetNow(g, vs.list)) continue;
+                Target t = s.registry.target(g.targetId);
+                in.resetGames.add(GameLabels.displayName(g, t, prior != null ? prior.names : GameNames.empty(),
+                        Consoles.badge(s.registry.emulatorOf(g.targetId).id, t.id)));
+            }
+        }
+        if (!BackupService.RUNNING) {
+            in.interruptedKind = Prefs.interruptedRun(ctx);
+            if (in.interruptedKind != null) in.interruptedAtMs = Prefs.interruptedRunAt(ctx, in.interruptedKind);
+        }
         StringBuilder lines = new StringBuilder();
         for (Problem pr : problems) {
             if (pr.setAside) continue;

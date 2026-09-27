@@ -278,4 +278,41 @@ class GameHistoryTest {
         for (GameHistory.Entry e : h.values()) if (game.equals(e.group.gameKey)) return e;
         throw new AssertionError("no entry for " + game + " in " + h.keySet());
     }
+
+    @Test
+    @DisplayName("a save replaced by a smaller one looks reset, and the backup before it is pinned")
+    void aShrunkSaveLooksReset(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/kart/userdata.dat"), "x".repeat(80_736));
+        write(ext.resolve("saves/kart/ghost.dat"), "g".repeat(500));
+        String v1 = runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT).versionId;
+        write(ext.resolve("saves/kart/userdata.dat"), "y".repeat(79_472));
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        GameHistory.Snapshot latest = find(h, "kart").snapshots.get(0);
+        assertTrue(latest.looksReset, "userdata.dat shrank by 1.5% with nothing else changed");
+        assertEquals(80_736 - 79_472, latest.shrunkBytes);
+        assertFalse(find(h, "kart").snapshots.get(1).looksReset, "the first backup is never a reset");
+
+        boolean pinned = false;
+        for (IndexEntry e : index(sink)) if (e.id.equals(v1)) pinned = e.pinned;
+        assertTrue(pinned, "the last backup before the reset must survive retention");
+    }
+
+    @Test
+    @DisplayName("a save that grew, or gained files, does not look reset")
+    void growthIsNotAReset(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/kart/userdata.dat"), "x".repeat(1000));
+        runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/kart/userdata.dat"), "y".repeat(1200));
+        write(ext.resolve("saves/kart/new.dat"), "n");
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        assertFalse(find(h, "kart").snapshots.get(0).looksReset);
+        for (IndexEntry e : index(sink)) assertFalse(e.pinned);
+    }
 }

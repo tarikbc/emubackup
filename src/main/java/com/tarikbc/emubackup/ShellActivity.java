@@ -364,6 +364,7 @@ public class ShellActivity extends GamepadActivity {
                 break;
             case ALLOW_NOTIFICATIONS: askForNotifications(); break;
             case SEE_WHAT_TO_DO: ((HomePane) panes[Dest.HOME.ordinal()]).showRemedies(); break;
+            case SEE_GAMES: show(Dest.GAMES, true); break;
         }
     }
 

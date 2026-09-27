@@ -257,6 +257,17 @@ public final class BackupRunner {
         BackupIndex updated = index.with(new IndexEntry(vid, nowMs, manifest.totalBytes(),
                 "prerestore".equals(kind), kind, IndexEntry.dependenciesOf(manifest)));
 
+        // A save that got smaller with nothing else changed looks like a game that started over.
+        // The backup before it is the last copy of the old save, so it is pinned: retention must
+        // not prune the one version a person will want back once they notice.
+        if (prior != null && !GameHistory.resetGroups(registry, prior, manifest).isEmpty()) {
+            for (IndexEntry e : index.versions()) {
+                if (e.id.equals(prior.version) && !e.pinned) {
+                    updated = updated.with(new IndexEntry(e.id, e.createdAtMs, e.bytes, true, e.kind, e.deps));
+                }
+            }
+        }
+
         // Pruning happens before the index is written, so a version is only ever absent from the
         // store after the index that referenced it has been replaced. The reverse order would
         // leave the index pointing at archives that are already gone.

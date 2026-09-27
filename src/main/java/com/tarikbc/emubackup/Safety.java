@@ -17,7 +17,7 @@ public final class Safety {
 
     public enum Action {
         START, BACK_UP_NOW, GRANT_STORAGE, SET_UP_EXTRA_ACCESS, CHOOSE_DESTINATION,
-        ALLOW_NOTIFICATIONS, RECONNECT_DRIVE, SEE_WHAT_HAPPENED, SEE_WHAT_TO_DO
+        ALLOW_NOTIFICATIONS, RECONNECT_DRIVE, SEE_WHAT_HAPPENED, SEE_WHAT_TO_DO, SEE_GAMES
     }
 
     public enum Where { DRIVE, FOLDER, DEVICE }
@@ -48,6 +48,11 @@ public final class Safety {
         public boolean scheduled;
         public String scheduleDescription;
         public long nowMs;
+        /** Games whose save looked reset at the newest backup, by name. */
+        public java.util.List<String> resetGames = new java.util.ArrayList<>();
+        /** "backup" or "restore" when the app was stopped in the middle of one; else null. */
+        public String interruptedKind;
+        public long interruptedAtMs;
     }
 
     public static final class Report {
@@ -109,6 +114,28 @@ public final class Safety {
                     in.gamesTotal > 0 ? games(in.gamesTotal) + " found, none backed up."
                                       : "Nothing has been backed up so far.",
                     Action.BACK_UP_NOW, "Back up now");
+        }
+        if (in.interruptedKind != null) {
+            boolean restore = "restore".equals(in.interruptedKind);
+            return new Report(State.ATTENTION,
+                    (restore ? "A restore" : "A backup") + " was cut short.",
+                    "It started " + Ago.format(in.interruptedAtMs, in.nowMs) + " and the app was stopped "
+                            + "before it finished. Nothing half-written was left behind. "
+                            + (restore ? "Check the game, or put it back again."
+                                       : "Run it again to be sure."),
+                    restore ? Action.SEE_GAMES : Action.BACK_UP_NOW,
+                    restore ? "Open Games" : "Back up now");
+        }
+        if (in.resetGames != null && !in.resetGames.isEmpty()) {
+            int n = in.resetGames.size();
+            return new Report(State.ATTENTION,
+                    n == 1 ? in.resetGames.get(0) + " looks like it started over."
+                           : n + " games look like they started over.",
+                    (n == 1 ? "Its save got smaller at the last backup with nothing else changed. "
+                            : "Their saves got smaller at the last backup with nothing else changed. ")
+                            + "The copy from before is kept and will not be pruned. If the game "
+                            + "really did reset, put that copy back from its page.",
+                    Action.SEE_GAMES, "Open Games");
         }
         if (in.gamesStale > 0) {
             return new Report(State.ATTENTION,

@@ -37,6 +37,26 @@ public final class ArchiveReader {
 
     private static final long REPORT_EVERY = 256 * 1024;
 
+    /** Where an archive's bytes come from. The sink itself, unless a nearer copy is known. */
+    public interface Opener {
+        InputStream open(String versionId, String archive) throws IOException;
+
+        /** The same, knowing which files are wanted from it, so a nearer copy can be chosen. */
+        default InputStream open(String versionId, String archive, Map<String, ManifestFile> wanted)
+                throws IOException {
+            return open(versionId, archive);
+        }
+
+        /** A few words on the source when it is not the store, for the progress line; else null. */
+        default String where(String versionId, String archive, Map<String, ManifestFile> wanted) {
+            return null;
+        }
+    }
+
+    public static Opener of(BackupSink sink) {
+        return sink::openFile;
+    }
+
     public static final Listener SILENT = new Listener() {
         @Override public void onFile(String p, int i, int n, long d, long t) {}
         @Override public boolean isCancelled() { return false; }
@@ -76,6 +96,11 @@ public final class ArchiveReader {
      */
     public static Result extract(BackupSink sink, List<String> chain, Map<String, ManifestFile> wanted,
                                  Writer writer, Listener listener) throws IOException {
+        return extract(of(sink), chain, wanted, writer, listener);
+    }
+
+    public static Result extract(Opener opener, List<String> chain, Map<String, ManifestFile> wanted,
+                                 Writer writer, Listener listener) throws IOException {
         // Group by the archive that actually holds each file, so no archive is opened for nothing
         // and no file is written twice.
         Map<String, Map<String, ManifestFile>> byArchive = new LinkedHashMap<>();
@@ -114,7 +139,7 @@ public final class ArchiveReader {
             String inFlight = null;
             final String vId = versionId, aName = archive;
             listener.onArchive(vId, aName, 0);
-            try (InputStream raw = sink.openFile(versionId, archive);
+            try (InputStream raw = opener.open(versionId, archive, new LinkedHashMap<>(want));
                  InputStream counted = new java.io.FilterInputStream(raw) {
                      long total, lastReported;
 
