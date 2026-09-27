@@ -315,4 +315,33 @@ class GameHistoryTest {
         assertFalse(find(h, "kart").snapshots.get(0).looksReset);
         for (IndexEntry e : index(sink)) assertFalse(e.pinned);
     }
+
+    @Test
+    @DisplayName("ordinary play that rewrites several files a little smaller is not a reset")
+    void severalFilesShrinkingIsNotAReset(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/zelda/slot_00.sav"), "a".repeat(20_000));
+        write(ext.resolve("saves/zelda/slot_01.sav"), "b".repeat(20_000));
+        runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/zelda/slot_00.sav"), "c".repeat(19_000));
+        write(ext.resolve("saves/zelda/slot_01.sav"), "d".repeat(19_500));
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        assertFalse(find(h, "zelda").snapshots.get(0).looksReset, "two files rewritten is play, not a reset");
+        for (IndexEntry e : index(sink)) assertFalse(e.pinned);
+    }
+
+    @Test
+    @DisplayName("a shrink under one percent is noise, not a reset")
+    void tinyShrinkIsNotAReset(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/kart/userdata.dat"), "x".repeat(200_000));
+        runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/kart/userdata.dat"), "y".repeat(199_000));
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        assertFalse(find(h, "kart").snapshots.get(0).looksReset);
+    }
 }

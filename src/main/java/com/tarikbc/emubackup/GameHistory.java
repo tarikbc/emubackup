@@ -273,9 +273,20 @@ public final class GameHistory {
         return n;
     }
 
+    /**
+     * The shape of a game that started a new save over an old one, and nothing else: exactly
+     * one file rewritten, at least one percent and 512 bytes smaller, nothing added or removed.
+     * Ordinary play rewrites several files at once and a save's size drifts by well under a
+     * percent; a fresh save written by a different game version does not (Mario Kart 8 Deluxe:
+     * one file, 1.6 % smaller). Still a guess, worded as one wherever it is shown.
+     */
     private static boolean looksReset(Delta d, long shrunk, SaveGroup before, SaveGroup after) {
-        return d.added.isEmpty() && d.removed.isEmpty() && !d.updated.isEmpty()
-                && shrunk > 0 && before != null && after.bytes < before.bytes;
+        if (!d.added.isEmpty() || !d.removed.isEmpty() || d.updated.size() != 1) return false;
+        if (shrunk < 512 || before == null || after.bytes >= before.bytes) return false;
+        String path = d.updated.get(0);
+        long was = 0;
+        for (FileStat f : before.files) if (f.path.equals(path)) was = f.size;
+        return was > 0 && shrunk * 100 >= was;
     }
 
     /**
