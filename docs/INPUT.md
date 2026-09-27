@@ -44,6 +44,9 @@ A probe log excerpt, for the record:
   action they trigger is also a visible, tappable control of at least 48dp. Touch is a first-
   class way to use the app, not a fallback.
 - No long-press, no swipe, no drag, anywhere. Both input methods get the same simple model.
+- Text is typed in exactly two places: the Drive client screen, and the input sheet (rename
+  a profile, search the Games list). The sheet's field takes focus, so the on-screen
+  keyboard opens by itself; Done commits.
 - Confirmation sheets are drawn in the pane, not as `AlertDialog`s: a dialog is a separate
   window and never sees the activity's key mapping.
 - After a RecyclerView adapter swap, focus is restored to the previous position; change
@@ -61,8 +64,11 @@ adb -s 64ff2273 exec-out screencap -p -d 4630946441858561667 > shot.png
 ```
 
 Without `-d 0` a key goes to the second screen's window (Cocoon) and nothing happens in the
-app. `SecondaryKeyguard4` blocks waking over adb; a hand has to unlock the device.
-`svc power stayon usb` keeps it awake after that. Every minute or so the Thor draws a
+app. `SecondaryKeyguard4` blocks waking over adb on some days; on 2026-09-26 `input keyevent
+KEYCODE_WAKEUP` followed by an upward `input -d 0 swipe 960 900 960 200 300` cleared the lock
+screen (no PIN set). If that fails a hand has to unlock the device. `svc power stayon usb`
+keeps it awake after that; install it early, because an `adb install` while the screen is
+off leaves the device asleep and the next capture black. Every minute or so the Thor draws a
 full-screen "anti-image-retention pixel refresh" band for a few seconds; it swallows keys and
 a capture that lands on it is mostly noise, which is easy to detect (the PNG is far larger
 than any app frame) and worth retrying.

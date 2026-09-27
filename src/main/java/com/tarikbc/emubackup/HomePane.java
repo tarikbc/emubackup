@@ -48,7 +48,7 @@ final class HomePane extends Pane {
         // focus while the model loaded (a posted requestFocus fails in touch mode).
         action.setFocusedByDefault(true);
         action.setOnClickListener(v -> {
-            if (model != null) host.perform(model.report.action);
+            if (model != null && model.report != null) host.perform(model.report.action);
         });
         LinearLayout.LayoutParams alp = top(c, 24);
         alp.width = tall ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -132,29 +132,42 @@ final class HomePane extends Pane {
         render(m);
     }
 
+    @Override void onLoading(String note) {
+        if (model != null && model.historyPending && detail != null) detail.setText(note);
+    }
+
     void render(HomeModel m) {
         this.model = m;
         view();
         Safety.Report r = m.report;
-        int hue = ShellActivity.hueOf(r.state);
-        stateWord.setText(ShellActivity.wordOf(r.state));
-        stateWord.setTextColor(Ui.color(host, hue));
-        int glyph = r.state == Safety.State.SAFE ? R.drawable.ic_circle_check
-                : r.state == Safety.State.ATTENTION ? R.drawable.ic_triangle_alert
-                : r.state == Safety.State.PROBLEM ? R.drawable.ic_circle_x : R.drawable.ic_info;
-        Ui.iconStart(stateWord, glyph, hue, 16, 6);
+        if (r == null) {
+            // The device is scanned; the store is still being read. Say so, and show the
+            // facts that are already known rather than four ellipses.
+            stateWord.setText("");
+            stateWord.setCompoundDrawablesRelative(null, null, null, null);
+            headline.setText("Checking your backups\u2026");
+            detail.setText("Your saves are found. Reading what is backed up in " + m.whereName() + ".");
+            action.setVisibility(View.INVISIBLE);
+        } else {
+            int hue = ShellActivity.hueOf(r.state);
+            stateWord.setText(ShellActivity.wordOf(r.state));
+            stateWord.setTextColor(Ui.color(host, hue));
+            int glyph = r.state == Safety.State.SAFE ? R.drawable.ic_circle_check
+                    : r.state == Safety.State.ATTENTION ? R.drawable.ic_triangle_alert
+                    : r.state == Safety.State.PROBLEM ? R.drawable.ic_circle_x : R.drawable.ic_info;
+            Ui.iconStart(stateWord, glyph, hue, 16, 6);
+            headline.setText(r.headline);
+            detail.setText(r.detail);
+            action.setText(r.actionLabel);
+            action.setVisibility(View.VISIBLE);
+        }
         int whereIcon = m.input.where == Safety.Where.DRIVE ? R.drawable.ic_cloud
                 : m.input.where == Safety.Where.FOLDER ? R.drawable.ic_folder : R.drawable.ic_smartphone;
         Ui.iconStart((TextView) ((android.view.ViewGroup) where.getParent()).getChildAt(
                 ((android.view.ViewGroup) where.getParent()).indexOfChild(where) - 1),
                 whereIcon, R.color.text_tertiary, 14, 6);
-        headline.setText(r.headline);
-        detail.setText(r.detail);
-        action.setText(r.actionLabel);
-        action.setVisibility(View.VISIBLE);
-
         long now = m.input.nowMs;
-        lastBackup.setText(m.input.lastBackupMs == 0 ? "Never"
+        lastBackup.setText(m.historyPending ? "\u2026" : m.input.lastBackupMs == 0 ? "Never"
                 : capitalise(Ago.format(m.input.lastBackupMs, now)));
         where.setText(capitalise(m.whereName())
                 + (m.input.destinationUnavailable ? " (for now)" : ""));
@@ -165,7 +178,8 @@ final class HomePane extends Pane {
             g.append("Could not look");
         } else {
             g.append(m.input.gamesTotal);
-            if (m.input.gamesStale > 0) g.append(", ").append(m.input.gamesStale).append(" changed");
+            // Whether a game changed since its backup is unknown until the store is read.
+            if (!m.historyPending && m.input.gamesStale > 0) g.append(", ").append(m.input.gamesStale).append(" changed");
             if (m.input.gamesLocked > 0) {
                 g.append("; ").append(m.input.gamesLocked)
                         .append(m.input.gamesLocked == 1 ? " folder" : " folders").append(" locked");
@@ -263,6 +277,12 @@ final class HomePane extends Pane {
 
     @Override void help() {
         if (model == null) return;
+        if (model.report == null) {
+            showSheet("Checking your backups\u2026", "The saves on this device are found. EmuBackup is "
+                    + "now reading what is backed up in " + model.whereName() + ", which can take a "
+                    + "moment on a slow connection. Games and Backups fill in as it goes.", null, "OK", null);
+            return;
+        }
         String body;
         switch (model.report.state) {
             case SAFE:

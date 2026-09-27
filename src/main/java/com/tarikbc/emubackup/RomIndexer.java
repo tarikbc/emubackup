@@ -24,19 +24,28 @@ public final class RomIndexer {
 
     public static final class Index {
         public final GameNames names;
+        /** Cocoon's scraped art for the same ROMs; empty when Cocoon has none. */
+        public final GameArt.Index art;
         public final int filesSeen;
         public final int idsFound;
 
-        Index(GameNames names, int filesSeen, int idsFound) {
+        Index(GameNames names, GameArt.Index art, int filesSeen, int idsFound) {
             this.names = names;
+            this.art = art;
             this.filesSeen = filesSeen;
             this.idsFound = idsFound;
         }
     }
 
+    /** Where Cocoon keeps what it scraped, keyed by ROM file name. See PROVENANCE.md. */
+    static File cocoonMedia() {
+        return new File(Environment.getExternalStorageDirectory(), "Cocoon/downloaded_media");
+    }
+
     /** Walks the ROM roots and derives names. Blocking; call from a background thread. */
     public static Index build(Context ctx) {
         GameNames.Builder b = GameNames.builder();
+        GameArt.Builder art = new GameArt.Builder(cocoonMedia());
         seed(b);
 
         int seen = 0, ids = 0;
@@ -58,6 +67,7 @@ public final class RomIndexer {
                     RomFilenameParser.Rom rom = RomFilenameParser.parse(f.getName());
                     if (rom.hasIds()) ids++;
                     b.derivedFrom(rom);
+                    art.add(f, rom);
                     // The id inside the file, for the containers whose names never carry it.
                     for (Map.Entry<IdKind, String> h : RomHeaders.read(f).entrySet()) {
                         b.derived(h.getKey(), h.getValue(), rom.displayName);
@@ -66,7 +76,7 @@ public final class RomIndexer {
                 }
             }
         }
-        return new Index(b.build(), seen, ids);
+        return new Index(b.build(), art.build(), seen, ids);
     }
 
     /**

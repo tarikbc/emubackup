@@ -104,6 +104,10 @@ final class BackupsPane extends Pane {
         }
     }
 
+    @Override void onLoading(String note) {
+        if (model != null && model.historyPending && subtitle != null) subtitle.setText(note);
+    }
+
     private int focusedPosition() {
         if (list == null) return -1;
         View f = list.getFocusedChild();
@@ -122,7 +126,11 @@ final class BackupsPane extends Pane {
 
         boolean unreachable = model.storeError != null;
         retry.setVisibility(unreachable ? View.VISIBLE : View.GONE);
-        if (unreachable) {
+        if (model.historyPending) {
+            subtitle.setText("Reading what is in " + where() + "\u2026");
+            empty.setText("");
+            empty.setVisibility(View.GONE);
+        } else if (unreachable && shown.isEmpty()) {
             subtitle.setText(Character.toUpperCase(where().charAt(0)) + where().substring(1)
                     + " could not be reached.");
             empty.setText(model.storeError);
@@ -143,6 +151,10 @@ final class BackupsPane extends Pane {
             s.append(shown.size() - copies).append(shown.size() - copies == 1 ? " backup" : " backups");
             if (copies > 0) s.append(", ").append(copies).append(copies == 1 ? " safety copy" : " safety copies");
             s.append(" \u00b7 ").append(Sizes.human(total)).append(" \u00b7 ").append(where());
+            if (unreachable) {
+                // The last index this device read; the store itself is out of reach right now.
+                s.append(" \u00b7 as last seen, ").append(where()).append(" could not be reached");
+            }
             subtitle.setText(s);
             empty.setVisibility(View.GONE);
         }
@@ -250,10 +262,14 @@ final class BackupsPane extends Pane {
     private void closeDetail() {
         if (detailView != null) root.removeView(detailView);
         detailView = null;
+        int at = openPosition;
+        if (open != null) {
+            for (int i = 0; i < shown.size(); i++) if (shown.get(i).id.equals(open.id)) at = i;
+        }
         open = null;
         if (listView.getParent() == null) root.addView(listView);
         host.refreshLegend();
-        Ui.focusRow(list, openPosition, true);
+        Ui.focusRow(list, at, true);
     }
 
     private void refreshDetail() {

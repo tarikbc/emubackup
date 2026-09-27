@@ -38,6 +38,9 @@ abstract class Pane {
     /** A fresh model has been loaded. Called for every pane that exists, shown or not. */
     void onModel(HomeModel m) { }
 
+    /** What the loader is doing right now, in words, while the store is still being read. */
+    void onLoading(String note) { }
+
     /** X, and whatever visible button means the same thing. */
     void onX() { }
 
@@ -80,6 +83,11 @@ abstract class Pane {
         ViewGroup over = host.paneHost();
         if (sheet != null) sheet.dismiss();
         sheet = SheetView.show(over, title, body, secondary, primary, onPrimary, onSecondary);
+    }
+
+    /** The sheet that is up, or null. For updating its body while work runs behind it. */
+    protected final SheetView sheet() {
+        return sheet != null && sheet.isShowing() ? sheet : null;
     }
 
     protected final void showInputSheet(String title, String body, String initial,

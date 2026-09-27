@@ -14,6 +14,9 @@ public final class ProfileAliases {
 
     private static final String PREFS = "profile_aliases";
 
+    /** Eden's "no profile": saves a game keeps per device rather than per user (replays, ghosts). */
+    static final String SHARED_UUID = "00000000000000000000000000000000";
+
     private final SharedPreferences prefs;
 
     public ProfileAliases(Context ctx) {
@@ -24,7 +27,8 @@ public final class ProfileAliases {
     public String nameFor(String uuid) {
         if (uuid == null || uuid.isEmpty()) return "";
         String v = prefs.getString(uuid.toUpperCase(java.util.Locale.ROOT), null);
-        return v != null ? v : shorten(uuid);
+        if (v != null) return v;
+        return SHARED_UUID.equals(uuid) ? "Shared" : shorten(uuid);
     }
 
     public boolean hasAlias(String uuid) {

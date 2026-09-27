@@ -40,6 +40,11 @@ public class ShellActivity extends GamepadActivity {
     private static final int REQ_NOTIFICATIONS = 7;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    /**
+     * For what a person asks for now (comparing a backup, counting a backup's games). Never the
+     * loader's thread: a store read that is taking a minute must not make a button do nothing.
+     */
+    private final ExecutorService work = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     private boolean tall;
@@ -189,6 +194,10 @@ public class ShellActivity extends GamepadActivity {
         return io;
     }
 
+    ExecutorService work() {
+        return work;
+    }
+
     Handler ui() {
         return ui;
     }
@@ -265,35 +274,50 @@ public class ShellActivity extends GamepadActivity {
         reload();
     }
 
-    /** Rescans and re-reads the store. Every resume does this; a retry button does it too. */
+    /**
+     * Rescans and re-reads the store. Every resume does this; a retry button does it too.
+     *
+     * <p>Two models arrive, in order, on the same executor: the device scan within seconds,
+     * then the store's history, which on a slow day (Drive with a stuck request) can take
+     * half a minute. The screens render the first and fill in from the second, so nothing
+     * ever sits on "Checking…" waiting for the network.
+     */
     void reload() {
         io.execute(() -> {
-            final HomeModel m = HomeModel.load(this);
-            ui.post(() -> {
+            final HomeModel local = HomeModel.local(this);
+            ui.post(() -> apply(local));
+            final HomeModel full = HomeModel.withHistory(this, local, what -> ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                model = m;
-                renderStatus(m);
-                for (Pane p : panes) if (p != null) p.onModel(m);
-                // Out of touch mode the framework hands initial focus to the first place
-                // before anything has loaded. Once Home has an answer, the answer's button is
-                // where a thumb should be resting.
-                View f = getCurrentFocus();
-                boolean parked = f == null || f == placeRows[Dest.HOME.ordinal()];
-                if (current == Dest.HOME && parked && GamepadActivity.gamepadPresent()) {
-                    focusByDefault(pane().defaultFocus());
-                }
-            });
+                for (Pane p : panes) if (p != null) p.onLoading(what);
+            }));
+            ui.post(() -> apply(full));
         });
     }
 
+    private void apply(HomeModel m) {
+        if (isFinishing() || isDestroyed()) return;
+        model = m;
+        renderStatus(m);
+        for (Pane p : panes) if (p != null) p.onModel(m);
+        // Out of touch mode the framework hands initial focus to the first place
+        // before anything has loaded. Once Home has an answer, the answer's button is
+        // where a thumb should be resting.
+        View f = getCurrentFocus();
+        boolean parked = f == null || f == placeRows[Dest.HOME.ordinal()];
+        if (current == Dest.HOME && parked && GamepadActivity.gamepadPresent()) {
+            focusByDefault(pane().defaultFocus());
+        }
+    }
+
     private void renderStatus(HomeModel m) {
-        int hue = hueOf(m.report.state);
+        int hue = m.report == null ? R.color.text_tertiary : hueOf(m.report.state);
         ((android.graphics.drawable.GradientDrawable) dot.getBackground()).setColor(Ui.color(this, hue));
     }
 
     @Override protected void onDestroy() {
         super.onDestroy();
         io.shutdownNow();
+        work.shutdownNow();
     }
 
     static int hueOf(Safety.State s) {

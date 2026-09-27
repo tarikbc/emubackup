@@ -24,10 +24,15 @@ public final class SheetView extends FrameLayout {
 
     private final ViewGroup host;
     private final java.util.Map<ViewGroup, Integer> blocked = new java.util.HashMap<>();
-    private TextView primaryButton, secondaryButton;
+    private TextView primaryButton, secondaryButton, body;
 
     public TextView primaryButton() {
         return primaryButton;
+    }
+
+    /** Replaces the body text in place, for a sheet that reports progress before its answer. */
+    public void setBody(CharSequence text) {
+        if (body != null) body.setText(text);
     }
 
     /** Null when the sheet has one button. */
@@ -119,6 +124,7 @@ public final class SheetView extends FrameLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         blp.topMargin = Ui.dp(c, 10);
         card.addView(b, blp);
+        sheet.body = b;
 
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -214,13 +220,23 @@ public final class SheetView extends FrameLayout {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.END);
         TextView cancel = Ui.secondaryButton(c, secondary);
-        cancel.setOnClickListener(v -> sheet.dismiss());
+        cancel.setOnClickListener(v -> {
+            android.view.inputmethod.InputMethodManager imm =
+                    c.getSystemService(android.view.inputmethod.InputMethodManager.class);
+            if (imm != null) imm.hideSoftInputFromWindow(field.getWindowToken(), 0);
+            sheet.dismiss();
+        });
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         clp.rightMargin = Ui.dp(c, 12);
         row.addView(cancel, clp);
         TextView go = Ui.primaryButton(c, primary);
         Runnable commit = () -> {
+            // The keyboard came up for the field; it must go down with the sheet, or it sits
+            // over the list the person just asked to see.
+            android.view.inputmethod.InputMethodManager imm =
+                    c.getSystemService(android.view.inputmethod.InputMethodManager.class);
+            if (imm != null) imm.hideSoftInputFromWindow(field.getWindowToken(), 0);
             sheet.dismiss();
             onPrimary.accept(field.getText().toString().trim());
         };

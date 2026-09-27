@@ -232,3 +232,24 @@ The icons under `res/drawable/ic_*.xml` (except the launcher and `ic_mark`) are 
     without fee is hereby granted, provided that the above copyright notice and this
     permission notice appear in all copies.
 
+
+## Cocoon's scraped art (2026-09-26)
+
+Cocoon (`rip.moth.cocoonshell`, 3.06-1 on the Thor) keeps what it scraped in shared storage,
+keyed by ROM file name, with the same system folder names as `ROMs/`:
+
+    /storage/emulated/0/Cocoon/downloaded_media/<system>/<kind>/<ROM file base>.<ext>
+    kinds: icon, logo, hero, screenshot_title, screenshot_gameplay
+    exts seen: jpg, png, webp
+
+For example `switch/icon/Mario Kart 8 Deluxe [0100152000022000][v0] (6.77 GB).jpg`
+(1.3 MB; icons are full-size scrapes) beside `ROMs/switch/Mario Kart 8 Deluxe
+[0100152000022000][v0] (6.77 GB).nsp`. Systems present: atari2600, dreamcast, gamegear, gb,
+gba, gbc, gc, genesis, mame, mastersystem, n3ds, n64, nds, neogeo, nes, ps2, psp, psx, saturn,
+segacd, snes, switch, tg-cd, tg16, wii, plus `android_app`, `folders`, `shortcut`, `smart`,
+`windows`. Nothing under `Android/data/rip.moth.cocoonshell` holds art (only scrape reports).
+
+`GameArt` indexes `icon` and `hero` while `RomIndexer` walks the ROMs, under every id the ROM
+file name carries and the file base itself, with the same aliases `GameNames` keeps. Only
+directory entries are read; a file is opened only when a row shows it, by `ArtLoader`, once,
+at display size.

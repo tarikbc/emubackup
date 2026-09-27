@@ -218,6 +218,62 @@ class GameHistoryTest {
         }
     }
 
+    @Test
+    @DisplayName("a snapshot says which files were added, updated and removed, and what it holds")
+    void snapshotDelta(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/zelda/a.dat"), "z1");
+        write(ext.resolve("saves/zelda/b.dat"), "bb");
+        runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/zelda/a.dat"), "z2-longer");
+        Files.delete(ext.resolve("saves/zelda/b.dat"));
+        write(ext.resolve("saves/zelda/c.dat"), "c");
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        GameHistory.Entry zelda = find(h, "zelda");
+
+        GameHistory.Snapshot first = zelda.snapshots.get(1);
+        assertTrue(first.first);
+        assertEquals(2, first.files);
+        assertEquals(4, first.bytes);
+        assertEquals(2, first.added);
+        assertEquals(0, first.updated);
+        assertEquals(0, first.removed);
+
+        GameHistory.Snapshot latest = zelda.snapshots.get(0);
+        assertEquals(3, latest.filesChanged);
+        assertEquals(1, latest.added);
+        assertEquals(1, latest.updated);
+        assertEquals(1, latest.removed);
+        assertEquals(List.of("zelda/c.dat"), latest.addedPaths);
+        assertEquals(List.of("zelda/a.dat"), latest.updatedPaths);
+        assertEquals(List.of("zelda/b.dat"), latest.removedPaths);
+        assertEquals(2, latest.files);
+        assertEquals(10, latest.bytes);
+    }
+
+    @Test
+    @DisplayName("a game gone from the device is a snapshot that removed every file")
+    void vanishedGameRemovesEveryFile(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        LocalFolderSink sink = new LocalFolderSink(tmp.resolve("store").toString());
+        write(ext.resolve("saves/zelda/a.dat"), "z1");
+        write(ext.resolve("saves/mario/m.dat"), "m1");
+        runner(ext, sink).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        Files.delete(ext.resolve("saves/mario/m.dat"));
+        Files.delete(ext.resolve("saves/mario"));
+        runner(ext, sink).run(null, "manual", 2_000L, BackupRunner.SILENT);
+
+        Map<String, GameHistory.Entry> h = GameHistory.build(reg, index(sink), manifests(sink, index(sink)), scanNow(ext));
+        GameHistory.Snapshot gone = find(h, "mario").snapshots.get(0);
+        assertEquals(1, gone.removed);
+        assertEquals(List.of("mario/m.dat"), gone.removedPaths);
+        assertEquals(0, gone.files);
+        assertEquals(0, gone.bytes);
+    }
+
     private static GameHistory.Entry find(Map<String, GameHistory.Entry> h, String game) {
         for (GameHistory.Entry e : h.values()) if (game.equals(e.group.gameKey)) return e;
         throw new AssertionError("no entry for " + game + " in " + h.keySet());

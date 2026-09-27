@@ -155,6 +155,19 @@ final class Ui {
         return b;
     }
 
+    /**
+     * A picture that crops to fill its box, with rounded corners. Game art from Cocoon: a square
+     * icon on a row, a wide hero on a page. Sized by the caller's layout params.
+     */
+    static android.widget.ImageView image(Context c, int radiusDp) {
+        android.widget.ImageView v = new android.widget.ImageView(c);
+        v.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        v.setBackground(card(c, R.color.surface_high));
+        ((GradientDrawable) v.getBackground()).setCornerRadius(dp(c, radiusDp));
+        v.setClipToOutline(true);
+        return v;
+    }
+
     static View dot(Context c, int colorRes, int sizeDp) {
         View v = new View(c);
         GradientDrawable d = new GradientDrawable();

@@ -79,6 +79,9 @@ $SRC/Remedies.java
 $SRC/DeviceCodeAuth.java
 $SRC/TokenEnvelope.java
 $SRC/DriveSink.java
+$SRC/RestoreSummary.java
+$SRC/GameFilter.java
+$SRC/GameArt.java
 "
 
 # Guard: enforce the android-free property rather than trusting it. Without this,

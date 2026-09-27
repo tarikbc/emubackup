@@ -26,19 +26,43 @@ import java.util.Map;
  */
 public final class GameHistory {
 
-    /** One backup in which the game changed. */
+    /** One backup in which the game changed, and what changed. */
     public static final class Snapshot {
         public final String versionId;
         public final long atMs;
+        /** {@code added + updated + removed}. */
         public final int filesChanged;
         /** True for the first backup that ever contained this game. */
         public final boolean first;
+        public final int added, updated, removed;
+        /** Sorted, target-relative. */
+        public final List<String> addedPaths, updatedPaths, removedPaths;
+        /** What the game held in this backup. Zero when it had vanished. */
+        public final int files;
+        public final long bytes;
 
-        Snapshot(String versionId, long atMs, int filesChanged, boolean first) {
+        Snapshot(String versionId, long atMs, boolean first, Delta d, int files, long bytes) {
             this.versionId = versionId;
             this.atMs = atMs;
-            this.filesChanged = filesChanged;
             this.first = first;
+            this.added = d.added.size();
+            this.updated = d.updated.size();
+            this.removed = d.removed.size();
+            this.filesChanged = added + updated + removed;
+            this.addedPaths = Collections.unmodifiableList(d.added);
+            this.updatedPaths = Collections.unmodifiableList(d.updated);
+            this.removedPaths = Collections.unmodifiableList(d.removed);
+            this.files = files;
+            this.bytes = bytes;
+        }
+    }
+
+    /** The paths that differ between two backups of one game, by content hash. */
+    private static final class Delta {
+        final List<String> added = new ArrayList<>(), updated = new ArrayList<>(), removed = new ArrayList<>();
+
+        int size() {
+            return added.size() + updated.size() + removed.size();
         }
     }
 
@@ -133,10 +157,11 @@ public final class GameHistory {
                 String key = g.getKey();
                 Map<String, String> hashes = hashesOf(m, g.getValue());
                 Map<String, String> before = lastSeen.get(key);
-                int changed = before == null ? hashes.size() : diffCount(before, hashes);
-                if (before == null || changed > 0) {
+                Delta d = delta(before == null ? new HashMap<>() : before, hashes);
+                if (before == null || d.size() > 0) {
                     snaps.computeIfAbsent(key, k -> new ArrayList<>())
-                            .add(new Snapshot(e.id, e.createdAtMs, changed, before == null));
+                            .add(new Snapshot(e.id, e.createdAtMs, before == null, d,
+                                    g.getValue().files.size(), g.getValue().bytes));
                 }
                 lastSeen.put(key, hashes);
                 lastTarget.put(key, g.getValue().targetId);
@@ -150,7 +175,8 @@ public final class GameHistory {
                 if (now.containsKey(key) || seen.getValue().isEmpty()) continue;
                 if (!observedTargets.contains(lastTarget.get(key))) continue;
                 snaps.computeIfAbsent(key, k -> new ArrayList<>())
-                        .add(new Snapshot(e.id, e.createdAtMs, seen.getValue().size(), false));
+                        .add(new Snapshot(e.id, e.createdAtMs, false,
+                                delta(seen.getValue(), new HashMap<>()), 0, 0));
                 lastSeen.put(key, new HashMap<>());
             }
         }
@@ -211,13 +237,18 @@ public final class GameHistory {
         return out;
     }
 
-    private static int diffCount(Map<String, String> before, Map<String, String> after) {
-        int n = 0;
+    private static Delta delta(Map<String, String> before, Map<String, String> after) {
+        Delta d = new Delta();
         for (Map.Entry<String, String> e : after.entrySet()) {
-            if (!e.getValue().equals(before.get(e.getKey()))) n++;
+            String was = before.get(e.getKey());
+            if (was == null) d.added.add(e.getKey());
+            else if (!was.equals(e.getValue())) d.updated.add(e.getKey());
         }
-        for (String p : before.keySet()) if (!after.containsKey(p)) n++;
-        return n;
+        for (String p : before.keySet()) if (!after.containsKey(p)) d.removed.add(p);
+        Collections.sort(d.added);
+        Collections.sort(d.updated);
+        Collections.sort(d.removed);
+        return d;
     }
 
     /** The same fast path the backup uses: size and mtime per path. */

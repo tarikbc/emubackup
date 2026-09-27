@@ -216,7 +216,20 @@ Build from these; do not hand-roll a button.
 - **Filter chip.** A pill with a family glyph (disc, cartridge, controller; console logos are
   trademarks and are not drawn) and the console's name; selected: accent; focused: ring.
   Chips are focusable, so the D-pad reaches them by moving up from the list; L2/R2 step
-  through them without moving the cursor.
+  through them without moving the cursor. The first chip is **Search**: it opens the input
+  sheet, and while a query is set it shows the query itself ("mario" ×) in accent. Y does
+  the same from anywhere on the list.
+- **Refine row.** A second, smaller row of toggles under the console chips, shown only when
+  it has something to offer: **Needs you** (rows in amber) and one chip per profile name.
+  Toggles are independent of the console chip. B clears the search and every toggle before
+  it leaves the pane.
+- **Thumbnail and hero.** Cocoon's scraped art, when the ROM has some. A 44 dp rounded icon
+  before the badge on a list row; a 140 dp hero fading into the window above the game
+  page's title. Decoded off the main thread and cached small; a game without art shows the
+  badge alone, exactly as before. Never a placeholder box.
+- **Profile chips.** On a game page, when the game is saved under more than one profile:
+  one chip per profile, the selected one in accent, L2/R2 to step. The page below (size,
+  status, timeline, put back) is the selected profile's.
 - **Console badge.** `Ui.badge` with `Consoles.badge` and `Consoles.tint`. 2–4 letters (SW,
   GC, WII, 3DS, DS, PS1, PS2, PS3, PSP, VITA, DC, RA, MC, AND, CH), 12sp bold, in the
   console's tint on a wash of it. Text, not logos; nothing to license and nothing to draw.
@@ -296,9 +309,9 @@ consequences:
 | **A** | Activate the focused thing. |
 | **B** | Back one level: sheet → detail → list → rail → Home → out. Never traps. |
 | **X** | The screen's one secondary action, named in the legend (e.g. "Rename profile"). |
-| **Y** | "What is this?" on Home and on Settings sections. |
+| **Y** | "What is this?" on Home and on Settings sections; **Search** on the Games list. |
 | L1 / R1 | Previous / next place on the rail, everywhere. |
-| L2 / R2 | The pane's own previous / next: the console filter on Games. |
+| L2 / R2 | The pane's own previous / next: the console filter on the Games list, the profile on a game page. |
 
 Rules: **nothing is reachable only by a gamepad button**; every X and Y has a visible button.
 Focus is always visible; every screen sets a default focus; the first D-pad press must land
