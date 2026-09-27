@@ -175,4 +175,15 @@ class ScheduleTest {
         assertTrue(text.contains("FAILED"), text);
         assertTrue(text.contains("no network"), text);
     }
+
+    @Test
+    @DisplayName("a catch-up is due when the schedule is on and a whole period has passed")
+    void catchUpDue() {
+        Settings daily = Settings.defaults().withFrequency(Settings.Frequency.DAILY);
+        long day = 24 * 3_600_000L, now = 1_800_000_000_000L;
+        assertTrue(JobSpec.catchUpDue(daily, 0L, now), "never backed up");
+        assertTrue(JobSpec.catchUpDue(daily, now - day - 1, now), "a day and a bit ago");
+        assertFalse(JobSpec.catchUpDue(daily, now - day / 2, now), "half a day ago");
+        assertFalse(JobSpec.catchUpDue(daily.withFrequency(Settings.Frequency.OFF), 0L, now), "nothing scheduled");
+    }
 }

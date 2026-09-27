@@ -44,6 +44,25 @@ public final class BackupJobScheduler {
         js.schedule(b.build());
     }
 
+    /**
+     * A one-off run under the same conditions, as soon as they hold. Registered beside the
+     * periodic job when that one was found missing and a run is overdue; see
+     * {@link JobSpec#CATCH_UP_JOB_ID}. Not persisted: a reboot keeps the periodic job, which
+     * is enough.
+     */
+    public static void catchUp(Context ctx, Settings s) {
+        JobScheduler js = ctx.getSystemService(JobScheduler.class);
+        JobSpec spec = JobSpec.of(s);
+        if (js == null || spec == null) return;
+        js.schedule(new JobInfo.Builder(JobSpec.CATCH_UP_JOB_ID,
+                new ComponentName(ctx, BackupJobService.class))
+                .setRequiresCharging(spec.requiresCharging)
+                .setRequiredNetworkType(spec.requiresUnmetered
+                        ? JobInfo.NETWORK_TYPE_UNMETERED : JobInfo.NETWORK_TYPE_ANY)
+                .setBackoffCriteria(JobSpec.BACKOFF_MS, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+                .build());
+    }
+
     /** True when a job is currently registered. Used to show the truth rather than the setting. */
     public static boolean isScheduled(Context ctx) {
         JobScheduler js = ctx.getSystemService(JobScheduler.class);

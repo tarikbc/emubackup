@@ -159,6 +159,7 @@ public class BackupService extends Service {
         // written; recording it as "ok" would put a success in the history for a backup that
         // never happened, and recording it as a failure would blame them for their own choice.
         Prefs.clearRunStarted(this, "backup");
+        if (versionId != null && !failed) Prefs.clearScheduleDropped(this);
         if (versionId != null || failed) {
             Prefs.record(this, new RunLog.Run(System.currentTimeMillis(), "manual",
                     !failed, versionId, bytes, summary));

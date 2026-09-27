@@ -53,6 +53,10 @@ public final class Safety {
         /** "backup" or "restore" when the app was stopped in the middle of one; else null. */
         public String interruptedKind;
         public long interruptedAtMs;
+        /** When the app last found its scheduled job gone and put it back; 0 when it never did. */
+        public long scheduleDroppedAtMs;
+        /** True when a one-off catch-up job was registered because a run was already overdue. */
+        public boolean catchUpRegistered;
     }
 
     public static final class Report {
@@ -136,6 +140,22 @@ public final class Safety {
                             + "The copy from before is kept and will not be pruned. If the game "
                             + "really did reset, put that copy back from its page.",
                     Action.SEE_GAMES, "Open Games");
+        }
+        if (in.scheduled && in.scheduleDroppedAtMs > 0) {
+            // Android drops every job an app owns when the app is force-stopped, and on some
+            // handhelds the recents screen does exactly that. The schedule was put back when
+            // the app opened, but the person has to hear why it did not run, or it will keep
+            // not running and Home will keep saying "Safe".
+            return new Report(State.ATTENTION, "Your automatic backup was switched off.",
+                    "Android removes the schedule when EmuBackup is closed from the recents "
+                            + "screen or force-stopped. It was put back when you opened the app"
+                            + (in.catchUpRegistered
+                                    ? ", and a catch-up runs as soon as the conditions hold ("
+                                            + in.scheduleDescription + ")."
+                                    : " (" + in.scheduleDescription + ").")
+                            + " To keep the schedule, leave EmuBackup in the background instead "
+                            + "of swiping it away.",
+                    Action.BACK_UP_NOW, "Back up now");
         }
         if (in.gamesStale > 0) {
             return new Report(State.ATTENTION,

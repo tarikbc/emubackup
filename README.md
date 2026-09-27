@@ -152,6 +152,13 @@ Daily or weekly, through `JobScheduler`, persisted across reboots, by default on
 and on Wi-Fi. A job has a bounded runtime, so the first backup of several hundred megabytes
 is run by hand from Home; every later run is an incremental measured in seconds.
 
+Android drops every scheduled job an app owns when the app is force-stopped, and on some
+handhelds (the AYN Thor among them) closing an app from the recents screen is a force-stop.
+EmuBackup cannot prevent that. What it does: when it opens and finds the job gone, it puts the
+schedule back, registers a one-off catch-up if a run is already overdue, and Home says "Your
+automatic backup was switched off" with the reason until a backup completes. To keep the
+schedule, leave EmuBackup in the background instead of swiping it away.
+
 Three failed scheduled runs in a row turn the schedule off and raise a notification, because a
 job retrying quietly forever is worse than no backup. Every run, manual or scheduled, is in
 the run history under Settings, shareable as plain text.

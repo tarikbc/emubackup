@@ -112,6 +112,7 @@ public class BackupJobService extends JobService {
                 new RunLog.Run(System.currentTimeMillis(), "scheduled", ok, versionId, bytes, detail));
 
         if (ok) {
+            Prefs.clearScheduleDropped(this);
             if (detail != null && !detail.isEmpty()) {
                 Notifications.result(this, "Backup finished with problems",
                         Sizes.human(bytes) + " written\n" + detail);

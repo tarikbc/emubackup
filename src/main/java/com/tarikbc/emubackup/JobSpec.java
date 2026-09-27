@@ -23,6 +23,14 @@ public final class JobSpec {
 
     public static final long MIN_PERIOD_MS = 15 * 60 * 1000L;
 
+    /**
+     * A one-off run with the same conditions, registered when the periodic job was found
+     * missing and a run is overdue. A periodic job put back at launch waits most of a period
+     * before its first run; on a device whose recents screen force-stops apps, that first run
+     * never comes. The catch-up runs as soon as the conditions hold instead.
+     */
+    public static final int CATCH_UP_JOB_ID = 1002;
+
     /** Retry delay after a failure the job asked to retry, doubling from here. */
     public static final long BACKOFF_MS = 30 * 60 * 1000L;
 
@@ -39,6 +47,13 @@ public final class JobSpec {
         this.flexMs = flexMs;
         this.requiresCharging = charging;
         this.requiresUnmetered = unmetered;
+    }
+
+    /** True when the schedule is on and at least one period has passed since the last backup. */
+    public static boolean catchUpDue(Settings s, long lastBackupMs, long nowMs) {
+        JobSpec spec = of(s);
+        if (spec == null) return false;
+        return lastBackupMs <= 0 || nowMs - lastBackupMs >= spec.periodMs;
     }
 
     /** Null when nothing should be scheduled. */

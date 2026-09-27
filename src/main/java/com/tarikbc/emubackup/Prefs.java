@@ -110,6 +110,24 @@ public final class Prefs {
         return prefs(ctx).getLong("run_started_" + kind, 0L);
     }
 
+    /** Set when the scheduled job was found missing and put back; cleared by a completed backup. */
+    public static void markScheduleDropped(Context ctx, long atMs, boolean catchUp) {
+        prefs(ctx).edit().putLong("schedule_dropped_at", atMs)
+                .putBoolean("schedule_catch_up", catchUp).apply();
+    }
+
+    public static void clearScheduleDropped(Context ctx) {
+        prefs(ctx).edit().remove("schedule_dropped_at").remove("schedule_catch_up").apply();
+    }
+
+    public static boolean scheduleCatchUp(Context ctx) {
+        return prefs(ctx).getBoolean("schedule_catch_up", false);
+    }
+
+    public static long scheduleDroppedAt(Context ctx) {
+        return prefs(ctx).getLong("schedule_dropped_at", 0L);
+    }
+
     private static SharedPreferences prefs(Context ctx) {
         return ctx.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }

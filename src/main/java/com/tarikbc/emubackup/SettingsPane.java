@@ -350,8 +350,9 @@ final class SettingsPane extends Pane {
                 "Daily", s.frequency == Settings.Frequency.DAILY, (Runnable) () -> set(s.withFrequency(Settings.Frequency.DAILY)),
                 "Weekly", s.frequency == Settings.Frequency.WEEKLY, (Runnable) () -> set(s.withFrequency(Settings.Frequency.WEEKLY)));
         if (s.scheduled() && !BackupJobScheduler.isScheduled(host)) {
-            TextView w = para(col, "The system has no job registered for this. Set it to Off and "
-                    + "back on to register it again.");
+            TextView w = para(col, "The system has no job registered for this. Android drops it "
+                    + "when EmuBackup is force-stopped, which the recents screen does on some "
+                    + "devices. Opening Home puts it back.");
             w.setTextColor(Ui.color(host, R.color.danger));
         }
         caption(col, "Only when");

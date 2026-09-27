@@ -130,12 +130,6 @@ final class HomeModel {
         in.destinationUnavailable = Destination.chosenButUnavailable(ctx);
         in.scheduled = set.scheduled();
         in.scheduleDescription = set.describeSchedule();
-        if (set.scheduled() && !BackupJobScheduler.isScheduled(ctx)) {
-            // A force-stop (from Settings, or adb) drops every JobScheduler job the app owns,
-            // and the schedule would then silently be a setting with nothing behind it. Put it
-            // back rather than ask the person to toggle it; Settings still says so if this fails.
-            BackupJobScheduler.apply(ctx, set);
-        }
         in.consecutiveScheduledFailures = log.consecutiveFailures();
         for (RunLog.Run r : log.runs()) {
             // The newest backup run of either kind. A restore is a run too, but not this one.
@@ -150,6 +144,20 @@ final class HomeModel {
                 break;
             }
         }
+        if (set.scheduled() && !BackupJobScheduler.isScheduled(ctx)) {
+            // A force-stop (from Settings, adb, or the Thor's recents screen) drops every
+            // JobScheduler job the app owns, and the schedule would then silently be a setting
+            // with nothing behind it. Put it back rather than ask the person to toggle it, note
+            // that it happened so Home can say so, and when a run is already overdue register a
+            // one-off catch-up, because the periodic job waits most of a period before its first
+            // run and a device that force-stops the app will not give it that long.
+            BackupJobScheduler.apply(ctx, set);
+            boolean catchUp = JobSpec.catchUpDue(set, in.lastBackupMs, now);
+            if (catchUp) BackupJobScheduler.catchUp(ctx, set);
+            Prefs.markScheduleDropped(ctx, now, catchUp);
+        }
+        in.scheduleDroppedAtMs = Prefs.scheduleDroppedAt(ctx);
+        in.catchUpRegistered = Prefs.scheduleCatchUp(ctx);
 
         String where = Safety.whereName(in.where);
         if (withStore) note.say("Reading the list of backups in " + where + "\u2026");

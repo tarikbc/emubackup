@@ -172,4 +172,31 @@ class SafetyTest {
         assertTrue(r.headline.contains("cut short"), r.headline);
         assertEquals(Safety.Action.BACK_UP_NOW, r.action);
     }
+
+    @Test
+    @DisplayName("a schedule the system dropped is reported, with the reason, until a backup completes")
+    void scheduleDropped() {
+        Safety.Input in = healthy();
+        in.scheduleDroppedAtMs = NOW - 60_000L;
+        Safety.Report r = Safety.assess(in);
+        assertEquals(Safety.State.ATTENTION, r.state);
+        assertEquals("Your automatic backup was switched off.", r.headline);
+        assertTrue(r.detail.contains("recents"), r.detail);
+        assertTrue(r.detail.contains("put back"), r.detail);
+        assertTrue(!r.detail.contains("catch-up"), r.detail);
+        assertEquals(Safety.Action.BACK_UP_NOW, r.action);
+
+        // A catch-up is only promised when one was registered.
+        in.catchUpRegistered = true;
+        assertTrue(Safety.assess(in).detail.contains("catch-up runs as soon as"), Safety.assess(in).detail);
+
+        // It explains a stale game, so it comes before the stale count.
+        in.gamesStale = 3;
+        assertEquals("Your automatic backup was switched off.", Safety.assess(in).headline);
+
+        // With no schedule there is nothing to have dropped.
+        in.gamesStale = 0;
+        in.scheduled = false;
+        assertTrue(!Safety.assess(in).headline.contains("switched off"));
+    }
 }
