@@ -255,14 +255,38 @@ public final class RestoreRunner {
         return snap;
     }
 
-    private BackupIndex loadIndex() {
+    /**
+     * The store's index, which the safety copy is appended to.
+     *
+     * <p>An index that cannot be read is not an empty one. Treating it as empty restarted the
+     * version counter at v0001 and, had the write gone through, would have replaced the real
+     * index with a one-entry file, losing every backup from the app's view. So a store that is
+     * out of reach refuses the restore, and only a store with no index at all (one written
+     * before indexes existed) is rebuilt from its manifests.
+     */
+    private BackupIndex loadIndex() throws IOException {
+        byte[] raw;
         try {
-            if (sink.hasRootFile(BackupIndex.FILE_NAME)) {
-                return BackupIndex.fromJson(new String(
-                        sink.readRootFile(BackupIndex.FILE_NAME), StandardCharsets.UTF_8));
+            raw = sink.readRootFile(BackupIndex.FILE_NAME);
+        } catch (java.io.FileNotFoundException absent) {
+            List<Manifest> all = new ArrayList<>();
+            for (String v : sink.listVersions()) {
+                if (!sink.hasFile(v, "manifest.json")) continue;
+                try (InputStream in = sink.openFile(v, "manifest.json")) {
+                    all.add(Manifest.fromJson(BackupRunner.readAll(in)));
+                }
             }
-        } catch (Exception ignored) {
+            return BackupIndex.rebuildFrom(all);
+        } catch (IOException e) {
+            String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            throw new IOException("Could not read the list of backups (" + why + "), so the safety copy "
+                    + "could not be recorded. Nothing was put back.", e);
         }
-        return BackupIndex.empty();
+        try {
+            return BackupIndex.fromJson(new String(raw, StandardCharsets.UTF_8));
+        } catch (RuntimeException corrupt) {
+            throw new IOException("The list of backups could not be understood, so the safety copy "
+                    + "could not be recorded. Nothing was put back.", corrupt);
+        }
     }
 }

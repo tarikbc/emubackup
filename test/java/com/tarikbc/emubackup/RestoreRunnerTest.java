@@ -253,4 +253,47 @@ class RestoreRunnerTest {
                 .append(' ').append(p.bytesDone).append("; ");
         return b.toString();
     }
+
+    @Test
+    @DisplayName("a store whose index cannot be read refuses the restore rather than starting a new counter")
+    void unreadableIndexRefusesTheRestore(@TempDir Path tmp) throws Exception {
+        Path ext = tmp.resolve("device");
+        Path store = tmp.resolve("store");
+        LocalFolderSink good = new LocalFolderSink(store.toString());
+        write(ext.resolve("saves/a.dat"), "original");
+        BackupRunner.Result b = backupRunner(ext, good).run(null, "manual", 1_000L, BackupRunner.SILENT);
+        write(ext.resolve("saves/a.dat"), "changed since");
+        ext.resolve("saves/a.dat").toFile().setLastModified(500L);
+
+        // The archives are there; only the index is out of reach, the way a stalled Drive listing is.
+        BackupSink flaky = (BackupSink) java.lang.reflect.Proxy.newProxyInstance(
+                BackupSink.class.getClassLoader(), new Class<?>[] { BackupSink.class },
+                (proxy, method, args) -> {
+                    boolean index = args != null && args.length > 0 && BackupIndex.FILE_NAME.equals(args[0]);
+                    if (index && method.getName().equals("hasRootFile")) return false;
+                    if (index && method.getName().equals("readRootFile")) throw new IOException("timeout");
+                    try {
+                        return method.invoke(good, args);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+        RestoreRunner runner = new RestoreRunner(flaky, new LocalFileSource(), null,
+                new LocalFileSink(), null, new Capabilities(true, false, false));
+        RestorePlan plan = planAll(b.manifest, ext, "saves").withForced(true);
+
+        IOException refused = assertThrows(IOException.class,
+                () -> runner.run(b.manifest, Arrays.asList(plan), 2_000L, RestoreRunner.SILENT));
+        assertTrue(refused.getMessage().contains("list of backups"), refused.getMessage());
+        assertEquals("changed since", read(ext.resolve("saves/a.dat")), "nothing may be written");
+        for (String v : good.listVersions()) {
+            assertFalse(v.startsWith("v0001-") && v.endsWith("-prerestore"), "no counter restarted at v0001: " + v);
+        }
+        assertEquals(1, index(good).size(), "the index is untouched");
+    }
+
+    private static List<IndexEntry> index(LocalFolderSink sink) throws IOException {
+        return BackupIndex.fromJson(new String(sink.readRootFile(BackupIndex.FILE_NAME),
+                java.nio.charset.StandardCharsets.UTF_8)).versions();
+    }
 }
